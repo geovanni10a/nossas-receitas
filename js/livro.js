@@ -1,5 +1,18 @@
 (function () {
-  var state = { currentHTML: "" };
+  var state = {
+    currentHTML: "",
+    renderToken: 0,
+    searchToken: 0
+  };
+
+  function escapeHtml(value) {
+    return String(value || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
 
   function useSimpleTransition() {
     var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -11,7 +24,7 @@
     return useSimpleTransition() ? 300 : 800;
   }
 
-  function initCoverPage() {
+  async function initCoverPage() {
     var cover = document.getElementById("abrir-livro");
     var shell = document.getElementById("intro-shell");
     var preview = document.getElementById("preview-categorias");
@@ -20,8 +33,8 @@
       return;
     }
 
-    window.NRStorage.initDefaultData();
-    preview.innerHTML = window.NRCategorias.previewMarkup();
+    await window.NRStorage.initDefaultData();
+    preview.innerHTML = await window.NRCategorias.previewMarkup();
 
     cover.addEventListener("click", function () {
       shell.classList.add("is-open");
@@ -35,7 +48,25 @@
     return new URLSearchParams(window.location.search);
   }
 
-  function renderBookView(html, onAfterRender) {
+  function finalizeRender(html, onAfterRender, container) {
+    container.innerHTML = html;
+    state.currentHTML = html;
+
+    if (typeof onAfterRender === "function") {
+      onAfterRender(container);
+    }
+
+    if (window.lucide && typeof window.lucide.createIcons === "function") {
+      window.lucide.createIcons();
+    }
+
+    var dropdown = document.getElementById("busca-resultados");
+    if (dropdown) {
+      dropdown.hidden = true;
+    }
+  }
+
+  function renderBookView(html, onAfterRender, renderToken) {
     var pageFront = document.getElementById("front-content");
     var pageBack = document.getElementById("back-content");
     var page = document.querySelector(".folha-livro");
@@ -48,57 +79,77 @@
     page.classList.add("is-turning");
 
     window.setTimeout(function () {
-      pageFront.innerHTML = html;
+      if (renderToken !== state.renderToken) {
+        return;
+      }
+
       pageBack.innerHTML = "";
       page.classList.remove("is-turning");
-      state.currentHTML = html;
-      if (typeof onAfterRender === "function") {
-        onAfterRender(pageFront);
-      }
+      finalizeRender(html, onAfterRender, pageFront);
     }, getTransitionDuration());
   }
 
-  function renderCurrentRoute(skipAnimation) {
-    var params = getParams();
+  async function buildRouteHTML(params) {
     var mensagem = params.get("mensagem");
     var receitaId = params.get("receita");
     var categoriaId = params.get("categoria");
-    var html = "";
-    var afterRender = null;
 
     if (mensagem) {
-      html = window.NRCategorias.renderEmptyState(mensagem, "Volte ao índice para continuar navegando.");
-    } else if (receitaId) {
-      html = window.NRReceita.renderRecipeDetail(receitaId);
-      afterRender = window.NRReceita.bindRecipeInteractions;
-    } else if (categoriaId) {
-      html = window.NRCategorias.renderCategoryRecipes(categoriaId);
-    } else {
-      html = window.NRCategorias.renderCategoriesView();
+      return {
+        html: window.NRCategorias.renderEmptyState(mensagem, "Volte ao indice para continuar navegando."),
+        afterRender: null
+      };
     }
 
-    if (!html) {
+    if (receitaId) {
+      return {
+        html: await window.NRReceita.renderRecipeDetail(receitaId),
+        afterRender: window.NRReceita.bindRecipeInteractions
+      };
+    }
+
+    if (categoriaId) {
+      return {
+        html: await window.NRCategorias.renderCategoryRecipes(categoriaId),
+        afterRender: null
+      };
+    }
+
+    return {
+      html: await window.NRCategorias.renderCategoriesView(),
+      afterRender: null
+    };
+  }
+
+  async function renderCurrentRoute(skipAnimation) {
+    var pageFront = document.getElementById("front-content");
+    var currentRenderToken = state.renderToken + 1;
+    var route;
+
+    state.renderToken = currentRenderToken;
+
+    try {
+      route = await buildRouteHTML(getParams());
+    } catch (error) {
+      route = {
+        html: window.NRCategorias.renderEmptyState(
+          "Nao foi possivel carregar o livro.",
+          error && error.message ? error.message : "Tente novamente em instantes."
+        ),
+        afterRender: null
+      };
+    }
+
+    if (currentRenderToken !== state.renderToken || !route.html) {
       return;
     }
 
     if (skipAnimation || !state.currentHTML) {
-      document.getElementById("front-content").innerHTML = html;
-      state.currentHTML = html;
-      if (typeof afterRender === "function") {
-        afterRender(document.getElementById("front-content"));
-      }
-    } else {
-      renderBookView(html, afterRender);
+      finalizeRender(route.html, route.afterRender, pageFront);
+      return;
     }
 
-    if (window.lucide && typeof window.lucide.createIcons === "function") {
-      window.lucide.createIcons();
-    }
-
-    var dropdown = document.getElementById("busca-resultados");
-    if (dropdown) {
-      dropdown.hidden = true;
-    }
+    renderBookView(route.html, route.afterRender, currentRenderToken);
   }
 
   function shouldInterceptLink(link) {
@@ -114,25 +165,43 @@
       return;
     }
 
-    var renderResults = function (query) {
-      var results = window.NRBusca.search(query);
+    var renderResults = async function (query) {
+      var trimmedQuery = String(query || "").trim();
+      var currentSearchToken = state.searchToken + 1;
 
-      if (query.trim().length < 2) {
+      state.searchToken = currentSearchToken;
+
+      if (trimmedQuery.length < 2) {
         dropdown.hidden = true;
         dropdown.innerHTML = "";
         return;
       }
 
       dropdown.hidden = false;
+      dropdown.innerHTML = '<div class="resultado-vazio">Buscando receitas...</div>';
 
-      if (!results.length) {
-        dropdown.innerHTML = '<div class="resultado-vazio">Nenhuma receita encontrada para "' + query.replace(/"/g, "&quot;") + '".</div>';
-        return;
+      try {
+        var results = await window.NRBusca.search(trimmedQuery);
+
+        if (currentSearchToken !== state.searchToken) {
+          return;
+        }
+
+        if (!results.length) {
+          dropdown.innerHTML = '<div class="resultado-vazio">Nenhuma receita encontrada para "' + escapeHtml(trimmedQuery) + '".</div>';
+          return;
+        }
+
+        dropdown.innerHTML = results.map(function (item) {
+          return '<a class="resultado-busca" href="livro.html?receita=' + item.id + '"><strong>' + escapeHtml(item.titulo) + "</strong><span>" + escapeHtml(item.categoria) + "</span></a>";
+        }).join("");
+      } catch (error) {
+        if (currentSearchToken !== state.searchToken) {
+          return;
+        }
+
+        dropdown.innerHTML = '<div class="resultado-vazio">Nao foi possivel buscar agora. Tente novamente.</div>';
       }
-
-      dropdown.innerHTML = results.map(function (item) {
-        return '<a class="resultado-busca" href="livro.html?receita=' + item.id + '"><strong>' + item.titulo + '</strong><span>' + item.categoria + '</span></a>';
-      }).join("");
     };
 
     input.addEventListener("input", window.NRBusca.debounce(function (event) {
@@ -152,18 +221,20 @@
     });
   }
 
-  function initBookShell() {
+  async function initBookShell() {
     var stage = document.getElementById("livro-palco");
+
     if (!stage || !window.NRStorage || !window.NRCategorias || !window.NRReceita) {
       return;
     }
 
-    window.NRStorage.initDefaultData();
-    renderCurrentRoute(true);
+    await window.NRStorage.initDefaultData();
+    await renderCurrentRoute(true);
     initSearch();
 
     document.body.addEventListener("click", function (event) {
       var link = event.target.closest("a");
+
       if (!shouldInterceptLink(link)) {
         return;
       }

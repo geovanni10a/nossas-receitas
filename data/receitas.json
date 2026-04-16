@@ -1,0 +1,12 @@
+{
+  "receitas": [],
+  "categorias": [
+    { "id": "doces", "nome": "Doces & Sobremesas", "icone": "🍰", "cor": "#C4845A" },
+    { "id": "massas", "nome": "Massas & Grãos", "icone": "🍝", "cor": "#A0522D" },
+    { "id": "carnes", "nome": "Carnes & Aves", "icone": "🥩", "cor": "#8B4513" },
+    { "id": "saladas", "nome": "Saladas & Entradas", "icone": "🥗", "cor": "#6B7C5C" },
+    { "id": "bebidas", "nome": "Bebidas", "icone": "🥤", "cor": "#7B9EA6" },
+    { "id": "vegetariano", "nome": "Vegetariano & Vegano", "icone": "🌿", "cor": "#5A7A4A" },
+    { "id": "especiais", "nome": "Especiais & Festas", "icone": "🎄", "cor": "#9B4B6B" }
+  ]
+}

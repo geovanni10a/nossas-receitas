@@ -28,6 +28,22 @@ const longRecipe = {
 };
 
 test.beforeEach(async ({ page }) => {
+  const remotePayload = {
+    receitas: [],
+    categorias: categories
+  };
+
+  await page.route("https://api.github.com/repos/geovanni10a/nossas-receitas/contents/data/receitas.json**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify({
+        sha: "teste-sha",
+        content: Buffer.from(JSON.stringify(remotePayload, null, 2)).toString("base64")
+      })
+    });
+  });
+
   await page.addInitScript(([seedCategories, seedRecipe]) => {
     window.localStorage.setItem("nr_initialized", "true");
     window.localStorage.setItem("nr_cleaned_defaults", "true");

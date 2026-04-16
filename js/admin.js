@@ -3,7 +3,7 @@
     recipeId: null,
     tags: [],
     photoData: "",
-    draggingKey: null,
+    draggingItem: null,
     isProcessingPhoto: false,
     photoJobId: 0
   };
@@ -24,6 +24,23 @@
     return new URLSearchParams(window.location.search);
   }
 
+  function normalizeDifficulty(value) {
+    var normalized = String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+
+    if (normalized === "medio") {
+      return "Medio";
+    }
+
+    if (normalized === "dificil") {
+      return "Dificil";
+    }
+
+    return "Facil";
+  }
+
   function createOption(value, label) {
     var option = document.createElement("option");
     option.value = value;
@@ -31,16 +48,28 @@
     return option;
   }
 
-  function renderCategoryOptions(selectedValue) {
+  async function renderCategoryOptions(selectedValue) {
     var select = byId("categoria");
-    var categories = window.NRStorage.getCategories();
+    var categories = await window.NRStorage.getCategories();
+
+    if (!categories.length && window.GitHubSync) {
+      categories = window.GitHubSync.getCategoriasIniciais();
+    }
 
     select.innerHTML = "";
+
     categories.forEach(function (category) {
       select.appendChild(createOption(category.id, category.nome));
     });
+
     select.appendChild(createOption("__new__", "Nova categoria..."));
-    select.value = selectedValue || categories[0].id;
+
+    if (selectedValue && categories.some(function (category) { return category.id === selectedValue; })) {
+      select.value = selectedValue;
+      return;
+    }
+
+    select.value = categories.length ? categories[0].id : "__new__";
   }
 
   function toggleNewCategoryField() {
@@ -66,26 +95,104 @@
     preview.classList.toggle("is-processing", Boolean(isProcessing));
   }
 
+  function showToast(message, isError) {
+    var toast = byId("toast");
+
+    if (!toast) {
+      return;
+    }
+
+    toast.hidden = !message;
+    toast.textContent = message || "";
+    toast.classList.toggle("toast--erro", Boolean(isError));
+  }
+
+  function setTokenStatus(message, tone) {
+    var status = byId("status-token");
+
+    if (!status) {
+      return;
+    }
+
+    status.textContent = message;
+    status.classList.remove("status-token--ok", "status-token--aviso", "status-token--erro");
+
+    if (tone) {
+      status.classList.add("status-token--" + tone);
+    }
+  }
+
+  function updateSaveButtonLabel() {
+    var button = byId("btn-salvar-receita");
+
+    if (!button) {
+      return;
+    }
+
+    if (window.GitHubSync.hasToken()) {
+      button.textContent = "Salvar e sincronizar";
+      return;
+    }
+
+    button.textContent = "Salvar neste navegador";
+  }
+
+  function refreshTokenUI(message, tone) {
+    var tokenField = byId("campo-token");
+
+    if (tokenField) {
+      tokenField.value = window.GitHubSync.getToken();
+    }
+
+    updateSaveButtonLabel();
+
+    if (message) {
+      setTokenStatus(message, tone);
+      return;
+    }
+
+    if (window.GitHubSync.hasToken()) {
+      setTokenStatus("Token configurado. As proximas alteracoes serao salvas no GitHub.", "ok");
+      return;
+    }
+
+    setTokenStatus("Token nao configurado. As receitas serao salvas apenas neste navegador.", "aviso");
+  }
+
   function renderTags() {
     var container = byId("tags-lista");
+
     container.innerHTML = "";
 
     state.tags.forEach(function (tag, index) {
       var chip = document.createElement("span");
+      var label = document.createElement("span");
+      var button = document.createElement("button");
+
       chip.className = "tag-chip";
-      chip.innerHTML = '<span>#' + tag + '</span><button type="button" aria-label="Remover tag">x</button>';
-      chip.querySelector("button").addEventListener("click", function () {
+      label.textContent = "#" + tag;
+      button.type = "button";
+      button.setAttribute("aria-label", "Remover tag");
+      button.textContent = "x";
+
+      button.addEventListener("click", function () {
         state.tags.splice(index, 1);
         renderTags();
       });
+
+      chip.appendChild(label);
+      chip.appendChild(button);
       container.appendChild(chip);
     });
   }
 
   function addTag(rawTag) {
     var tag = String(rawTag || "").trim().replace(/^#/, "");
+    var alreadyExists = state.tags.some(function (item) {
+      return item.toLowerCase() === tag.toLowerCase();
+    });
 
-    if (!tag || state.tags.indexOf(tag) !== -1) {
+    if (!tag || alreadyExists) {
       return;
     }
 
@@ -95,19 +202,35 @@
 
   function createListItem(type, value) {
     var wrapper = document.createElement("div");
+    var handle = document.createElement("span");
+    var input = document.createElement("input");
+    var removeButton = document.createElement("button");
+
     wrapper.className = "lista-item";
     wrapper.draggable = true;
     wrapper.dataset.type = type;
-    wrapper.innerHTML = '<span class="drag-handle" aria-hidden="true">::</span><input type="text" value="' + String(value || "").replace(/"/g, "&quot;") + '" placeholder="' + (type === "ingredientes" ? "Ex: 2 ovos" : "Descreva o passo") + '"><button class="remover-item" type="button" aria-label="Remover item">x</button>';
+
+    handle.className = "drag-handle";
+    handle.setAttribute("aria-hidden", "true");
+    handle.textContent = "::";
+
+    input.type = "text";
+    input.value = value || "";
+    input.placeholder = type === "ingredientes" ? "Ex: 2 ovos" : "Descreva o passo";
+
+    removeButton.className = "remover-item";
+    removeButton.type = "button";
+    removeButton.setAttribute("aria-label", "Remover item");
+    removeButton.textContent = "x";
 
     wrapper.addEventListener("dragstart", function () {
-      state.draggingKey = wrapper;
+      state.draggingItem = wrapper;
       wrapper.classList.add("is-dragging");
     });
 
     wrapper.addEventListener("dragend", function () {
       wrapper.classList.remove("is-dragging");
-      state.draggingKey = null;
+      state.draggingItem = null;
     });
 
     wrapper.addEventListener("dragover", function (event) {
@@ -116,15 +239,21 @@
 
     wrapper.addEventListener("drop", function (event) {
       event.preventDefault();
-      if (!state.draggingKey || state.draggingKey === wrapper) {
+
+      if (!state.draggingItem || state.draggingItem === wrapper) {
         return;
       }
-      wrapper.parentNode.insertBefore(state.draggingKey, wrapper);
+
+      wrapper.parentNode.insertBefore(state.draggingItem, wrapper);
     });
 
-    wrapper.querySelector(".remover-item").addEventListener("click", function () {
+    removeButton.addEventListener("click", function () {
       wrapper.remove();
     });
+
+    wrapper.appendChild(handle);
+    wrapper.appendChild(input);
+    wrapper.appendChild(removeButton);
 
     return wrapper;
   }
@@ -164,14 +293,15 @@
   }
 
   function validateForm() {
-    clearErrors();
-
-    var isValid = true;
     var title = byId("titulo");
     var category = byId("categoria");
     var newCategory = byId("nova-categoria");
     var ingredients = getListValues("ingredientes-lista");
     var steps = getListValues("passos-lista");
+    var isValid = true;
+
+    clearErrors();
+    showToast("", false);
 
     if (!title.value.trim()) {
       showError("titulo", "O titulo e obrigatorio.", title);
@@ -222,17 +352,7 @@
 
   function drawSquareImage(ctx, img, origemX, origemY, menorLado, tamanhoAtual) {
     ctx.clearRect(0, 0, tamanhoAtual, tamanhoAtual);
-    ctx.drawImage(
-      img,
-      origemX,
-      origemY,
-      menorLado,
-      menorLado,
-      0,
-      0,
-      tamanhoAtual,
-      tamanhoAtual
-    );
+    ctx.drawImage(img, origemX, origemY, menorLado, menorLado, 0, 0, tamanhoAtual, tamanhoAtual);
   }
 
   function resizarFotoParaQuadrado(file, targetSize) {
@@ -255,21 +375,21 @@
             return;
           }
 
-          // Recorta um quadrado central e vai reduzindo a compressao
-          // ate caber confortavelmente no limite de armazenamento.
           while (tamanhoAtual >= PHOTO_MIN_SIZE) {
             var qualidadeAtual = 0.85;
+
             canvas.width = tamanhoAtual;
             canvas.height = tamanhoAtual;
-
             drawSquareImage(ctx, img, origemX, origemY, menorLado, tamanhoAtual);
 
             while (qualidadeAtual >= 0.55) {
               var base64 = canvas.toDataURL("image/jpeg", qualidadeAtual);
+
               if (getDataUrlByteSize(base64) <= PHOTO_LIMIT_BYTES) {
                 resolve(base64);
                 return;
               }
+
               qualidadeAtual -= 0.05;
             }
 
@@ -294,22 +414,27 @@
     });
   }
 
-  function recipePayload() {
+  async function buildRecipePayload() {
     var categoryValue = byId("categoria").value;
+    var categoryData = categoryValue === "__new__"
+      ? null
+      : await window.NRStorage.getCategoryById(categoryValue);
     var categoryName = categoryValue === "__new__"
       ? byId("nova-categoria").value.trim()
-      : window.NRStorage.getCategoryById(categoryValue).nome;
+      : (categoryData ? categoryData.nome : categoryValue);
 
     return {
       id: state.recipeId,
       titulo: byId("titulo").value.trim(),
       categoriaId: categoryValue === "__new__" ? categoryName : categoryValue,
       categoriaNome: categoryName,
+      categoriaIcone: categoryData ? categoryData.icone : "",
+      categoriaCor: categoryData ? categoryData.cor : "",
       tags: state.tags.slice(),
       tempoPreparo: byId("tempo-preparo").value.trim(),
       tempoForno: byId("tempo-forno").value.trim(),
       porcoes: byId("porcoes").value ? Number(byId("porcoes").value) : 0,
-      dificuldade: byId("dificuldade").value,
+      dificuldade: normalizeDifficulty(byId("dificuldade").value),
       foto: state.photoData,
       ingredientes: getListValues("ingredientes-lista"),
       modoPreparo: getListValues("passos-lista"),
@@ -317,45 +442,63 @@
     };
   }
 
-  function fillForm(recipe) {
+  async function fillForm(recipe) {
+    var hasCategory = false;
+
     state.recipeId = recipe.id;
-    state.tags = recipe.tags.slice();
+    state.tags = Array.isArray(recipe.tags) ? recipe.tags.slice() : [];
     state.photoData = recipe.foto || "";
 
     byId("admin-titulo").textContent = "Editar receita";
-    byId("titulo").value = recipe.titulo;
-    renderCategoryOptions(recipe.categoriaId);
-    byId("tempo-preparo").value = recipe.tempoPreparo;
-    byId("tempo-forno").value = recipe.tempoForno;
+    byId("titulo").value = recipe.titulo || "";
+    await renderCategoryOptions(recipe.categoriaId);
+
+    hasCategory = byId("categoria").value === recipe.categoriaId;
+    if (!hasCategory) {
+      byId("categoria").value = "__new__";
+      byId("nova-categoria").value = recipe.categoriaNome || recipe.categoriaId || "";
+    }
+
+    toggleNewCategoryField();
+
+    byId("tempo-preparo").value = recipe.tempoPreparo || "";
+    byId("tempo-forno").value = recipe.tempoForno || "";
     byId("porcoes").value = recipe.porcoes || "";
-    byId("dificuldade").value = recipe.dificuldade;
-    byId("dica").value = recipe.dica;
+    byId("dificuldade").value = normalizeDifficulty(recipe.dificuldade);
+    byId("dica").value = recipe.dica || "";
+
     setPreview(recipe.foto || "assets/sem-foto.svg");
     renderTags();
 
     byId("ingredientes-lista").innerHTML = "";
     byId("passos-lista").innerHTML = "";
 
-    recipe.ingredientes.forEach(function (item) {
+    (recipe.ingredientes || []).forEach(function (item) {
       addListItem("ingredientes-lista", "ingredientes", item);
     });
 
-    recipe.modoPreparo.forEach(function (item) {
+    (recipe.modoPreparo || []).forEach(function (item) {
       addListItem("passos-lista", "passos", item);
     });
 
     byId("delete-recipe").hidden = false;
   }
 
-  function initDelete() {
-    byId("delete-recipe").addEventListener("click", function () {
+  async function initDelete() {
+    byId("delete-recipe").addEventListener("click", async function () {
       if (!state.recipeId) {
         return;
       }
 
-      if (window.confirm("Tem certeza que deseja excluir esta receita?")) {
-        window.NRStorage.deleteRecipe(state.recipeId);
+      if (!window.confirm("Tem certeza que deseja excluir esta receita?")) {
+        return;
+      }
+
+      try {
+        await window.NRStorage.deleteRecipe(state.recipeId);
         window.location.href = "livro.html";
+      } catch (error) {
+        showToast(error.message || "Nao foi possivel excluir a receita.", true);
       }
     });
   }
@@ -376,7 +519,7 @@
     if (!isSupportedImageFile(file)) {
       event.target.value = "";
       setPhotoStatus("", false);
-      showError("foto", "Por favor, selecione uma imagem (JPG, PNG ou WebP).", byId("foto"));
+      showError("foto", "Selecione uma imagem JPG, PNG ou WebP.", byId("foto"));
       return;
     }
 
@@ -401,6 +544,36 @@
     });
   }
 
+  async function handleTokenSave() {
+    var token = byId("campo-token").value.trim();
+
+    if (!token) {
+      setTokenStatus("Cole um token antes de salvar.", "erro");
+      return;
+    }
+
+    setTokenStatus("Validando token e lendo o arquivo remoto...", "aviso");
+
+    try {
+      window.GitHubSync.setToken(token);
+      await window.GitHubSync.lerReceitas();
+      refreshTokenUI("Token salvo com sucesso. Sincronizacao ativa.", "ok");
+
+      if (window.Migration) {
+        window.Migration.verificarEMigrar(byId("container-migracao"));
+      }
+    } catch (error) {
+      window.GitHubSync.clearToken();
+      refreshTokenUI(error.message || "Nao foi possivel validar o token.", "erro");
+    }
+  }
+
+  function handleTokenClear() {
+    window.GitHubSync.clearToken();
+    refreshTokenUI("Token removido. O painel voltou ao modo local.", "aviso");
+    byId("container-migracao").innerHTML = "";
+  }
+
   function initEvents() {
     byId("categoria").addEventListener("change", toggleNewCategoryField);
 
@@ -421,57 +594,77 @@
     });
 
     byId("foto").addEventListener("change", handlePhotoChange);
+    byId("btn-salvar-token").addEventListener("click", handleTokenSave);
+    byId("btn-limpar-token").addEventListener("click", handleTokenClear);
 
-    byId("recipe-form").addEventListener("submit", function (event) {
+    byId("recipe-form").addEventListener("submit", async function (event) {
+      var submitButton = byId("btn-salvar-receita");
+      var saved;
+
       event.preventDefault();
 
       if (!validateForm()) {
         return;
       }
 
-      try {
-        var saved = window.NRStorage.saveRecipe(recipePayload());
-        var toast = byId("toast");
+      submitButton.disabled = true;
+      showToast(window.GitHubSync.hasToken() ? "Salvando no GitHub..." : "Salvando neste navegador...", false);
 
-        toast.hidden = false;
-        toast.textContent = "Receita salva com sucesso! OK";
+      try {
+        saved = await window.NRStorage.saveRecipe(await buildRecipePayload());
+        showToast(window.GitHubSync.hasToken() ? "Receita sincronizada com sucesso! OK" : "Receita salva neste navegador! OK", false);
 
         window.setTimeout(function () {
           window.location.href = "livro.html?receita=" + saved.id + "&categoria=" + saved.categoriaId;
-        }, 2000);
+        }, 1600);
       } catch (error) {
-        showError("foto", error.message || "Nao foi possivel salvar a receita.");
+        showToast(error.message || "Nao foi possivel salvar a receita.", true);
+      } finally {
+        submitButton.disabled = false;
+        updateSaveButtonLabel();
       }
     });
   }
 
-  function initAdmin() {
-    if (!document.getElementById("recipe-form") || !window.NRStorage) {
+  async function initAdmin() {
+    var recipeId;
+    var recipe;
+
+    if (!document.getElementById("recipe-form") || !window.NRStorage || !window.GitHubSync) {
       return;
     }
 
-    window.NRStorage.initDefaultData();
-    renderCategoryOptions();
+    await window.NRStorage.initDefaultData();
+    await renderCategoryOptions();
     toggleNewCategoryField();
     setPreview("assets/sem-foto.svg");
     setPhotoStatus("", false);
+    refreshTokenUI();
     addListItem("ingredientes-lista", "ingredientes", "");
     addListItem("passos-lista", "passos", "");
     initEvents();
     initDelete();
 
-    var recipeId = getParams().get("id");
-    if (recipeId) {
-      var recipe = window.NRStorage.getRecipeById(recipeId);
-
-      if (!recipe) {
-        window.location.href = "livro.html?mensagem=" + encodeURIComponent("Receita nao encontrada.");
-        return;
-      }
-
-      fillForm(recipe);
+    if (window.GitHubSync.hasToken() && window.Migration) {
+      window.Migration.verificarEMigrar(byId("container-migracao"));
     }
+
+    recipeId = getParams().get("id");
+    if (!recipeId) {
+      return;
+    }
+
+    recipe = await window.NRStorage.getRecipeById(recipeId);
+
+    if (!recipe) {
+      window.location.href = "livro.html?mensagem=" + encodeURIComponent("Receita nao encontrada.");
+      return;
+    }
+
+    await fillForm(recipe);
   }
 
-  document.addEventListener("DOMContentLoaded", initAdmin);
+  document.addEventListener("DOMContentLoaded", function () {
+    initAdmin();
+  });
 })();

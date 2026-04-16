@@ -12,6 +12,7 @@
 
   function recipeCard(recipe) {
     var image = recipe.foto || PLACEHOLDER;
+
     return [
       '<a class="item-lista" href="livro.html?receita=' + recipe.id + '&categoria=' + recipe.categoriaId + '">',
       '  <div class="thumb-receita"><img src="' + image + '" alt="Foto da receita ' + escapeHtml(recipe.titulo) + '"></div>',
@@ -20,7 +21,7 @@
       '    <p>' + (recipe.dica ? escapeHtml(recipe.dica) : "Uma receita guardada no seu livro pessoal.") + '</p>',
       '    <div class="meta-receita">',
       '      <span class="meta-chip">' + escapeHtml(recipe.tempoPreparo || "Tempo livre") + '</span>',
-      '      <span class="meta-chip">' + escapeHtml(recipe.dificuldade || "Fácil") + '</span>',
+      '      <span class="meta-chip">' + escapeHtml(recipe.dificuldade || "Facil") + '</span>',
       '    </div>',
       '  </div>',
       '  <span class="meta-chip">Abrir</span>',
@@ -28,15 +29,38 @@
     ].join("");
   }
 
-  function renderCategoriesView() {
-    var categories = window.NRStorage.getCategories();
+  function renderEmptyState(title, description, linkLabel, linkHref) {
+    return [
+      '<section class="estado-vazio">',
+      '  <h2>' + escapeHtml(title) + '</h2>',
+      '  <p>' + escapeHtml(description) + '</p>',
+      '  <p><a class="botao-secundario" href="' + escapeHtml(linkHref || "livro.html") + '">' + escapeHtml(linkLabel || "Voltar ao indice") + '</a></p>',
+      '</section>'
+    ].join("");
+  }
+
+  async function renderCategoriesView() {
+    var categories = await window.NRStorage.getCategories();
+    var totalRecipes = categories.reduce(function (total, category) {
+      return total + category.totalReceitas;
+    }, 0);
+
+    if (!totalRecipes) {
+      return renderEmptyState(
+        "Seu livro ainda esta em branco. Que tal adicionar a primeira receita?",
+        "Salve sua primeira receita no painel admin e ela ficara sincronizada entre os dispositivos configurados.",
+        "Abrir painel admin",
+        "admin.html"
+      );
+    }
+
     return [
       '<section class="categorias-view">',
       '  <header class="cabecalho-view">',
       '    <div>',
-      '      <p class="sobretitulo">Índice da cozinha</p>',
+      '      <p class="sobretitulo">Indice da cozinha</p>',
       '      <h1>Escolha uma categoria</h1>',
-      '      <p>Passeie pelas páginas, busque por um ingrediente favorito e mantenha tudo salvo no seu navegador.</p>',
+      '      <p>Passeie pelas paginas, busque por um ingrediente favorito e mantenha tudo sincronizado pelo GitHub.</p>',
       '    </div>',
       '    <a class="botao-secundario" href="admin.html">Adicionar uma nova receita</a>',
       '  </header>',
@@ -50,7 +74,7 @@
           '  </div>',
           '  <div>',
           '    <h3>' + escapeHtml(category.nome) + '</h3>',
-          '    <p>Abra esta seção e veja suas receitas em páginas delicadas e fáceis de consultar.</p>',
+          '    <p>Abra esta secao e veja suas receitas em paginas delicadas e faceis de consultar.</p>',
           '  </div>',
           '</a>'
         ].join("");
@@ -60,19 +84,19 @@
     ].join("");
   }
 
-  function renderCategoryRecipes(categoryId) {
-    var category = window.NRStorage.getCategoryById(categoryId);
-    var recipes = window.NRStorage.getRecipesByCategory(categoryId);
+  async function renderCategoryRecipes(categoryId) {
+    var category = await window.NRStorage.getCategoryById(categoryId);
+    var recipes = await window.NRStorage.getRecipesByCategory(categoryId);
 
     if (!category) {
-      return renderEmptyState("Categoria não encontrada.", "Volte ao índice e escolha outra seção do livro.");
+      return renderEmptyState("Categoria nao encontrada.", "Volte ao indice e escolha outra secao do livro.");
     }
 
     if (!recipes.length) {
       return [
         '<section class="estado-vazio">',
-        '  <h2>Ainda não há receitas aqui. Que tal adicionar uma?</h2>',
-        '  <p>Você pode preencher esta categoria abrindo o painel administrativo.</p>',
+        '  <h2>Ainda nao ha receitas aqui. Que tal adicionar uma?</h2>',
+        '  <p>Voce pode preencher esta categoria abrindo o painel administrativo.</p>',
         '  <p><a class="botao-primario" href="admin.html">Ir para o painel</a></p>',
         '</section>'
       ].join("");
@@ -81,7 +105,7 @@
     return [
       '<section class="lista-view">',
       '  <div class="navegacao-livro">',
-      '    <a class="botao-secundario" href="livro.html">← Voltar ao Índice</a>',
+      '    <a class="botao-secundario" href="livro.html">Voltar ao indice</a>',
       '    <a class="botao-secundario" href="admin.html">Adicionar receita</a>',
       '  </div>',
       '  <header class="cabecalho-view">',
@@ -100,18 +124,10 @@
     ].join("");
   }
 
-  function renderEmptyState(title, description) {
-    return [
-      '<section class="estado-vazio">',
-      '  <h2>' + escapeHtml(title) + '</h2>',
-      '  <p>' + escapeHtml(description) + '</p>',
-      '  <p><a class="botao-secundario" href="livro.html">Voltar ao índice</a></p>',
-      '</section>'
-    ].join("");
-  }
+  async function previewMarkup() {
+    var categories = await window.NRStorage.getCategories();
 
-  function previewMarkup() {
-    return window.NRStorage.getCategories().slice(0, 4).map(function (category) {
+    return categories.slice(0, 4).map(function (category) {
       return '<div class="preview-categoria"><strong>' + escapeHtml(category.icone + " " + category.nome) + '</strong><br><small>' + category.totalReceitas + ' registradas</small></div>';
     }).join("");
   }

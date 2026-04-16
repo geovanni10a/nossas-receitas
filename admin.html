@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Nossas Receitas | Admin</title>
-  <meta name="description" content="Painel local para criar e editar receitas do livro Nossas Receitas.">
+  <meta name="description" content="Painel para criar, editar e sincronizar receitas do livro Nossas Receitas.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lato:wght@400;700&family=Lora:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -21,17 +21,57 @@
       </div>
       <div class="admin-acoes-topo">
         <a class="botao-secundario" href="livro.html">Voltar ao livro</a>
-        <button class="botao-perigo" id="delete-recipe" type="button" hidden>Excluir Receita</button>
+        <button class="botao-perigo" id="delete-recipe" type="button" hidden>Excluir receita</button>
       </div>
     </header>
+
+    <section class="card-admin config-github" id="secao-config-github">
+      <div class="config-github__topo">
+        <div>
+          <p class="sobretitulo">Sincronizacao</p>
+          <h2>Conectar com o GitHub</h2>
+          <p>Leitura funciona sem token. Para salvar no repositorio e sincronizar entre dispositivos, configure um token pessoal.</p>
+        </div>
+        <a
+          class="botao-secundario"
+          href="https://github.com/settings/tokens/new?description=Nossas%20Receitas%20-%20Sync&scopes=public_repo"
+          target="_blank"
+          rel="noreferrer"
+        >
+          Criar token
+        </a>
+      </div>
+
+      <div class="token-wrapper">
+        <label class="campo campo-token">
+          <span>Token GitHub</span>
+          <input
+            type="password"
+            id="campo-token"
+            autocomplete="off"
+            spellcheck="false"
+            placeholder="Cole aqui o token com permissao para editar o repositorio"
+          >
+        </label>
+
+        <div class="token-acoes">
+          <button class="botao-primario" type="button" id="btn-salvar-token">Salvar token</button>
+          <button class="botao-secundario" type="button" id="btn-limpar-token">Limpar token</button>
+        </div>
+      </div>
+
+      <p class="status-token" id="status-token" aria-live="polite"></p>
+    </section>
+
+    <div id="container-migracao"></div>
 
     <form class="form-receita" id="recipe-form" novalidate>
       <div class="form-grid">
         <section class="card-admin">
-          <h2>Informações principais</h2>
+          <h2>Informacoes principais</h2>
 
           <label class="campo">
-            <span>Título</span>
+            <span>Titulo</span>
             <input type="text" id="titulo" maxlength="100" required>
             <small class="erro" data-erro="titulo"></small>
           </label>
@@ -44,7 +84,7 @@
 
           <label class="campo" id="nova-categoria-shell" hidden>
             <span>Nova categoria</span>
-            <input type="text" id="nova-categoria" maxlength="60" placeholder="Ex: Pães & Fermentados">
+            <input type="text" id="nova-categoria" maxlength="60" placeholder="Ex: Paes e fermentados">
             <small class="erro" data-erro="novaCategoria"></small>
           </label>
 
@@ -55,7 +95,7 @@
           </label>
 
           <div class="preview-imagem" id="preview-imagem">
-            <img id="preview-foto" alt="Pré-visualização da foto da receita">
+            <img id="preview-foto" alt="Pre-visualizacao da foto da receita">
           </div>
           <p class="status-foto" id="foto-status" hidden aria-live="polite">Processando foto...</p>
 
@@ -73,16 +113,16 @@
 
           <div class="campos-linha">
             <label class="campo">
-              <span>Porções</span>
+              <span>Porcoes</span>
               <input type="number" id="porcoes" min="1" step="1" placeholder="8">
             </label>
 
             <label class="campo">
               <span>Dificuldade</span>
               <select id="dificuldade">
-                <option value="Fácil">Fácil</option>
-                <option value="Médio">Médio</option>
-                <option value="Difícil">Difícil</option>
+                <option value="Facil">Facil</option>
+                <option value="Medio">Medio</option>
+                <option value="Dificil">Dificil</option>
               </select>
             </label>
           </div>
@@ -91,13 +131,13 @@
             <span>Tags</span>
             <div class="tags-input-shell" id="tags-shell">
               <div class="tags-lista" id="tags-lista"></div>
-              <input type="text" id="tag-input" placeholder="Digite e pressione Enter ou vírgula">
+              <input type="text" id="tag-input" placeholder="Digite e pressione Enter ou virgula">
             </div>
           </div>
 
           <label class="campo">
             <span>Dica</span>
-            <textarea id="dica" rows="4" placeholder="Uma observação especial sobre a receita"></textarea>
+            <textarea id="dica" rows="4" placeholder="Uma observacao especial sobre a receita"></textarea>
           </label>
         </section>
 
@@ -124,11 +164,13 @@
 
       <footer class="rodape-form">
         <div class="toast" id="toast" hidden></div>
-        <button class="botao-primario" type="submit">Salvar Receita</button>
+        <button class="botao-primario" id="btn-salvar-receita" type="submit">Salvar receita</button>
       </footer>
     </form>
   </main>
 
+  <script src="js/github-sync.js"></script>
+  <script src="js/migration.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/admin.js"></script>
 </body>
