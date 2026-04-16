@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nossas Receitas</title>
+  <meta name="description" content="Livro pessoal de receitas com visual de livro antigo e painel local de administração.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lato:wght@400;700&family=Lora:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/livro.css">
+  <link rel="stylesheet" href="css/categorias.css">
+</head>
+<body class="pagina-capa">
+  <div class="fundo-livro"></div>
+  <main class="intro-livro" aria-live="polite">
+    <section class="mesa-livro">
+      <div class="livro-intro-shell" id="intro-shell">
+        <div class="livro-preview" id="preview" aria-hidden="true">
+          <div class="pagina-preview">
+            <p class="sobretitulo">Índice do livro</p>
+            <h2>Sabores guardados em família</h2>
+            <div class="preview-categorias" id="preview-categorias"></div>
+            <a class="botao-secundario" href="livro.html">Ir para o índice completo</a>
+          </div>
+        </div>
+        <button class="capa-livro" id="abrir-livro" aria-label="Abrir o livro de receitas e revelar o índice de categorias">
+          <span class="capa-brilho"></span>
+          <span class="capa-conteudo">
+            <span class="capa-kicker">Caderno da cozinha</span>
+            <strong>Nossas Receitas</strong>
+            <span class="capa-subtitulo">Memórias, cheiros e pratos para repetir</span>
+            <span class="botao-capa">Abrir o livro</span>
+          </span>
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <script src="js/storage.js"></script>
+  <script src="js/categorias.js"></script>
+  <script src="js/livro.js"></script>
+</body>
+</html>

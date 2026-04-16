@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nossas Receitas | Admin</title>
+  <meta name="description" content="Painel local para criar e editar receitas do livro Nossas Receitas.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lato:wght@400;700&family=Lora:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="pagina-admin">
+  <div class="fundo-livro"></div>
+  <main class="admin-layout">
+    <header class="admin-topo">
+      <div>
+        <p class="sobretitulo">Painel do caderno</p>
+        <h1 id="admin-titulo">Nova receita</h1>
+      </div>
+      <div class="admin-acoes-topo">
+        <a class="botao-secundario" href="livro.html">Voltar ao livro</a>
+        <button class="botao-perigo" id="delete-recipe" type="button" hidden>Excluir Receita</button>
+      </div>
+    </header>
+
+    <form class="form-receita" id="recipe-form" novalidate>
+      <div class="form-grid">
+        <section class="card-admin">
+          <h2>Informações principais</h2>
+
+          <label class="campo">
+            <span>Título</span>
+            <input type="text" id="titulo" maxlength="100" required>
+            <small class="erro" data-erro="titulo"></small>
+          </label>
+
+          <label class="campo">
+            <span>Categoria</span>
+            <select id="categoria" required></select>
+            <small class="erro" data-erro="categoria"></small>
+          </label>
+
+          <label class="campo" id="nova-categoria-shell" hidden>
+            <span>Nova categoria</span>
+            <input type="text" id="nova-categoria" maxlength="60" placeholder="Ex: Pães & Fermentados">
+            <small class="erro" data-erro="novaCategoria"></small>
+          </label>
+
+          <label class="campo">
+            <span>Foto</span>
+            <input type="file" id="foto" accept="image/*">
+            <small class="erro" data-erro="foto"></small>
+          </label>
+
+          <div class="preview-imagem" id="preview-imagem">
+            <img id="preview-foto" alt="Pré-visualização da foto da receita">
+          </div>
+
+          <div class="campos-linha">
+            <label class="campo">
+              <span>Tempo de preparo</span>
+              <input type="text" id="tempo-preparo" placeholder="30 min">
+            </label>
+
+            <label class="campo">
+              <span>Tempo de forno</span>
+              <input type="text" id="tempo-forno" placeholder="45 min">
+            </label>
+          </div>
+
+          <div class="campos-linha">
+            <label class="campo">
+              <span>Porções</span>
+              <input type="number" id="porcoes" min="1" step="1" placeholder="8">
+            </label>
+
+            <label class="campo">
+              <span>Dificuldade</span>
+              <select id="dificuldade">
+                <option value="Fácil">Fácil</option>
+                <option value="Médio">Médio</option>
+                <option value="Difícil">Difícil</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="campo">
+            <span>Tags</span>
+            <div class="tags-input-shell" id="tags-shell">
+              <div class="tags-lista" id="tags-lista"></div>
+              <input type="text" id="tag-input" placeholder="Digite e pressione Enter ou vírgula">
+            </div>
+          </div>
+
+          <label class="campo">
+            <span>Dica</span>
+            <textarea id="dica" rows="4" placeholder="Uma observação especial sobre a receita"></textarea>
+          </label>
+        </section>
+
+        <section class="card-admin">
+          <div class="bloco-lista">
+            <div class="bloco-topo">
+              <h2>Ingredientes</h2>
+              <button class="botao-secundario" type="button" id="add-ingredient">+ Adicionar</button>
+            </div>
+            <small class="erro" data-erro="ingredientes"></small>
+            <div class="lista-dinamica" id="ingredientes-lista"></div>
+          </div>
+
+          <div class="bloco-lista">
+            <div class="bloco-topo">
+              <h2>Modo de preparo</h2>
+              <button class="botao-secundario" type="button" id="add-step">+ Adicionar</button>
+            </div>
+            <small class="erro" data-erro="modoPreparo"></small>
+            <div class="lista-dinamica" id="passos-lista"></div>
+          </div>
+        </section>
+      </div>
+
+      <footer class="rodape-form">
+        <div class="toast" id="toast" hidden></div>
+        <button class="botao-primario" type="submit">Salvar Receita</button>
+      </footer>
+    </form>
+  </main>
+
+  <script src="js/storage.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

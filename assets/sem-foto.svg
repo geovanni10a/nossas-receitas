@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 420" role="img" aria-labelledby="title desc">
+  <title id="title">Sem foto</title>
+  <desc id="desc">Placeholder ilustrado para receitas sem imagem.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5E6C8" />
+      <stop offset="100%" stop-color="#EDD9A3" />
+    </linearGradient>
+  </defs>
+  <rect width="600" height="420" rx="32" fill="url(#bg)" />
+  <rect x="40" y="40" width="520" height="340" rx="24" fill="none" stroke="#C9A97A" stroke-width="4" stroke-dasharray="10 8" />
+  <g fill="#A0522D">
+    <circle cx="210" cy="172" r="44" opacity="0.9" />
+    <path d="M156 286c30-52 71-78 124-78s94 26 124 78" fill="none" stroke="#A0522D" stroke-width="18" stroke-linecap="round" />
+    <path d="M287 116c26-36 77-44 112-16-12 8-26 16-34 26-8 10-12 22-18 32-24-2-50-14-60-42Z" opacity="0.75" />
+  </g>
+  <text x="300" y="352" text-anchor="middle" font-family="Georgia, serif" font-size="34" fill="#5C3D1E">Foto da receita em breve</text>
+</svg>
