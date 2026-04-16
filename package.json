@@ -1,0 +1,25 @@
+{
+  "name": "teste-chat",
+  "version": "1.0.0",
+  "description": "Site estático em HTML, CSS e JavaScript puro com visual de livro de receitas antigo, persistência em `localStorage` e painel local para criar ou editar receitas.",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/geovanni10a/nossas-receitas.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/geovanni10a/nossas-receitas/issues"
+  },
+  "homepage": "https://github.com/geovanni10a/nossas-receitas#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.59.1"
+  }
+}

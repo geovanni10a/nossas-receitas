@@ -1,2 +1,6 @@
 Thumbs.db
 .DS_Store
+node_modules/
+artifacts/
+playwright-report/
+test-results/
