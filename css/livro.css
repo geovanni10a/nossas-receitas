@@ -302,7 +302,9 @@
   height: 100%;
   min-height: 0;
   padding: var(--espaco-xl);
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
 }
 
 @keyframes virar-frente {

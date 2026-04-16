@@ -1,18 +1,17 @@
 .detalhe-receita {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto;
   gap: var(--espaco-lg);
-  height: 100%;
-  min-height: 0;
-  overflow: hidden;
+  min-height: 100%;
+  overflow: visible;
 }
 
 .receita-dupla {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   gap: var(--espaco-lg);
-  height: 100%;
   min-height: 0;
+  align-items: start;
 }
 
 .receita-info,
@@ -22,15 +21,13 @@
   padding: var(--espaco-lg);
   background-color: var(--cor-luz-14);
   min-height: 0;
-  overflow-x: hidden;
+  overflow: visible;
 }
 
 .receita-info {
   display: grid;
   align-content: start;
   gap: var(--espaco-md);
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
 }
 
 .receita-imagem {
@@ -86,10 +83,6 @@
 .receita-corpo {
   display: grid;
   gap: var(--espaco-lg);
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  -webkit-overflow-scrolling: touch;
 }
 
 .receita-corpo h2 {
@@ -172,25 +165,13 @@
 }
 
 @media (max-width: 768px) {
-  .detalhe-receita {
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
-
   .receita-dupla {
     grid-template-columns: 1fr;
-    height: auto;
   }
 
   .topo-detalhe,
   .topo-detalhe .acoes {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .receita-info,
-  .receita-corpo {
-    overflow: visible;
   }
 }
