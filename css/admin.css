@@ -89,7 +89,9 @@
 .preview-imagem {
   display: grid;
   place-items: center;
-  min-height: 220px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  min-height: 0;
   margin-bottom: var(--espaco-md);
   overflow: hidden;
   border: 1px solid var(--cor-borda);
@@ -98,9 +100,23 @@
 }
 
 .preview-imagem img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
+}
+
+.preview-imagem.is-processing {
+  opacity: 0.6;
+}
+
+.status-foto {
+  min-height: 1.2em;
+  margin: 0 0 var(--espaco-md);
+  color: var(--cor-acento);
+  font-family: var(--fonte-ui);
+  font-size: var(--texto-sm);
 }
 
 .tags-input-shell {

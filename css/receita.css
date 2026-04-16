@@ -3,12 +3,15 @@
   grid-template-rows: auto 1fr auto;
   gap: var(--espaco-lg);
   height: 100%;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .receita-dupla {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   gap: var(--espaco-lg);
+  height: 100%;
   min-height: 0;
 }
 
@@ -18,16 +21,21 @@
   border-radius: var(--raio-lg);
   padding: var(--espaco-lg);
   background-color: var(--cor-luz-14);
+  min-height: 0;
+  overflow-x: hidden;
 }
 
 .receita-info {
   display: grid;
   align-content: start;
   gap: var(--espaco-md);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .receita-imagem {
-  aspect-ratio: 4 / 3;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   overflow: hidden;
   border-radius: var(--raio-lg);
   border: 1px solid var(--cor-borda);
@@ -35,9 +43,11 @@
 }
 
 .receita-imagem img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 
 .receita-info h1 {
@@ -76,7 +86,10 @@
 .receita-corpo {
   display: grid;
   gap: var(--espaco-lg);
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .receita-corpo h2 {
@@ -159,13 +172,25 @@
 }
 
 @media (max-width: 768px) {
+  .detalhe-receita {
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
   .receita-dupla {
     grid-template-columns: 1fr;
+    height: auto;
   }
 
   .topo-detalhe,
   .topo-detalhe .acoes {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .receita-info,
+  .receita-corpo {
+    overflow: visible;
   }
 }

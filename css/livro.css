@@ -3,10 +3,26 @@
   overflow: hidden;
 }
 
+.pagina-livro {
+  height: 100vh;
+  height: 100dvh;
+  overflow: clip;
+}
+
 .intro-livro,
 .livro-app {
   min-height: 100vh;
   padding: var(--espaco-lg);
+}
+
+.pagina-livro .livro-app {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .mesa-livro {
@@ -236,26 +252,32 @@
 .livro-palco {
   width: min(100%, 1280px);
   margin: 0 auto;
+  height: 100%;
+  min-height: 0;
   perspective: var(--perspectiva);
 }
 
 .folha-livro {
   position: relative;
-  min-height: 720px;
+  height: 100%;
+  min-height: 0;
   transform-style: preserve-3d;
 }
 
 .folha-frente,
 .folha-verso {
+  height: 100%;
   border: 1px solid var(--cor-borda);
   border-radius: var(--raio-lg);
   background-color: var(--cor-papel);
   box-shadow: 0 24px 55px var(--cor-sombra);
+  overflow: hidden;
+  overflow: clip;
 }
 
 .folha-frente {
   position: relative;
-  min-height: 720px;
+  min-height: 0;
 }
 
 .folha-verso {
@@ -275,8 +297,12 @@
 }
 
 .pagina-conteudo {
+  display: flex;
+  flex-direction: column;
   height: 100%;
+  min-height: 0;
   padding: var(--espaco-xl);
+  overflow: hidden;
 }
 
 @keyframes virar-frente {
@@ -323,11 +349,6 @@
 
   .capa-conteudo {
     padding: var(--espaco-xl);
-  }
-
-  .folha-livro,
-  .folha-frente {
-    min-height: 640px;
   }
 
   .pagina-conteudo {
