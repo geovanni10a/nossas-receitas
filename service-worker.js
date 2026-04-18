@@ -107,6 +107,20 @@ function buildNavigationCacheKey(requestUrl) {
   return "." + url.pathname;
 }
 
+function buildStaticCacheKey(requestUrl) {
+  var url = new URL(requestUrl);
+
+  if (url.origin !== self.location.origin) {
+    return requestUrl;
+  }
+
+  if (url.pathname === "/" || !url.pathname) {
+    return "./index.html";
+  }
+
+  return "." + url.pathname;
+}
+
 async function networkFirstPage(request) {
   var cache = await caches.open(APP_SHELL_CACHE);
   var cacheKey = buildNavigationCacheKey(request.url);
@@ -127,11 +141,16 @@ async function networkFirstPage(request) {
 }
 
 async function staleWhileRevalidate(request) {
-  var cache = await caches.open(RUNTIME_CACHE);
-  var cached = await cache.match(request);
+  var runtimeCache = await caches.open(RUNTIME_CACHE);
+  var shellCache = await caches.open(APP_SHELL_CACHE);
+  var staticKey = buildStaticCacheKey(request.url);
+  var cached = (await runtimeCache.match(request))
+    || (await runtimeCache.match(staticKey))
+    || (await shellCache.match(staticKey))
+    || (await shellCache.match(request));
   var networkPromise = fetch(request).then(function (response) {
     if (response && response.ok) {
-      cache.put(request, response.clone());
+      runtimeCache.put(staticKey, response.clone());
     }
 
     return response;

@@ -9,6 +9,19 @@
 
   var LEGACY_DEFAULT_RECIPE_IDS = ["1714000000000", "1714000000100"];
   var MAX_REPOSITORY_BYTES = 950 * 1024;
+  var CONFLICT_GROUPS = [
+    { key: "titulo", label: "Titulo", fields: ["titulo"] },
+    { key: "categoria", label: "Categoria", fields: ["categoriaId", "categoriaNome", "categoriaIcone", "categoriaCor"] },
+    { key: "tags", label: "Tags", fields: ["tags"] },
+    { key: "tempoPreparo", label: "Tempo de preparo", fields: ["tempoPreparo"] },
+    { key: "tempoForno", label: "Tempo de forno", fields: ["tempoForno"] },
+    { key: "porcoes", label: "Porcoes", fields: ["porcoes"] },
+    { key: "dificuldade", label: "Dificuldade", fields: ["dificuldade"] },
+    { key: "foto", label: "Foto", fields: ["foto", "fotoThumb"] },
+    { key: "ingredientes", label: "Ingredientes", fields: ["ingredientes"] },
+    { key: "modoPreparo", label: "Modo de preparo", fields: ["modoPreparo"] },
+    { key: "dica", label: "Dica", fields: ["dica"] }
+  ];
   var cache = null;
   var loadingPromise = null;
   var syncState = {
@@ -24,12 +37,37 @@
     }
   }
 
+  function createStorageError(message, code, details) {
+    var error = new Error(message);
+    error.code = code || "storage_error";
+
+    if (details && typeof details === "object") {
+      Object.keys(details).forEach(function (key) {
+        error[key] = details[key];
+      });
+    }
+
+    return error;
+  }
+
   function defaultCategories() {
     return window.GitHubSync ? window.GitHubSync.getCategoriasIniciais() : [];
   }
 
   function cloneData(data) {
     return JSON.parse(JSON.stringify(data));
+  }
+
+  function cloneValue(value) {
+    if (value === null || value === undefined) {
+      return value;
+    }
+
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+      return value;
+    }
+
+    return JSON.parse(JSON.stringify(value));
   }
 
   function normalizeData(data) {
@@ -295,11 +333,29 @@
 
   function normalizeRecipe(recipe) {
     var now = new Date().toISOString();
+    var normalizedBase = normalizeConflictRecipe(recipe);
+
+    if (!normalizedBase) {
+      normalizedBase = normalizeConflictRecipe({});
+    }
+
+    normalizedBase.id = recipe && recipe.id ? String(recipe.id) : String(Date.now());
+    normalizedBase.criadoEm = recipe && recipe.criadoEm ? String(recipe.criadoEm) : now;
+    normalizedBase.atualizadoEm = now;
+
+    return normalizedBase;
+  }
+
+  function normalizeConflictRecipe(recipe) {
+    if (!recipe) {
+      return null;
+    }
+
     var categoriaNome = String(recipe.categoriaNome || "").trim();
     var categoriaId = slugify(recipe.categoriaId || categoriaNome);
 
     return {
-      id: recipe.id ? String(recipe.id) : String(Date.now()),
+      id: recipe.id ? String(recipe.id) : "",
       titulo: String(recipe.titulo || "").trim(),
       categoriaId: categoriaId,
       categoriaNome: categoriaNome,
@@ -313,11 +369,166 @@
       ingredientes: Array.isArray(recipe.ingredientes) ? recipe.ingredientes.filter(Boolean) : [],
       modoPreparo: Array.isArray(recipe.modoPreparo) ? recipe.modoPreparo.filter(Boolean) : [],
       dica: String(recipe.dica || "").trim(),
-      criadoEm: recipe.criadoEm || now,
-      atualizadoEm: now,
+      criadoEm: recipe.criadoEm ? String(recipe.criadoEm) : "",
+      atualizadoEm: recipe.atualizadoEm ? String(recipe.atualizadoEm) : "",
       categoriaIcone: recipe.categoriaIcone || "",
       categoriaCor: recipe.categoriaCor || ""
     };
+  }
+
+  function serializeComparableValue(value) {
+    return JSON.stringify(value === undefined ? null : value);
+  }
+
+  function valuesEqual(a, b) {
+    return serializeComparableValue(a) === serializeComparableValue(b);
+  }
+
+  function getGroupValue(recipe, group) {
+    if (!recipe) {
+      return null;
+    }
+
+    if (group.fields.length === 1) {
+      return cloneValue(recipe[group.fields[0]]);
+    }
+
+    return group.fields.reduce(function (accumulator, field) {
+      accumulator[field] = cloneValue(recipe[field]);
+      return accumulator;
+    }, {});
+  }
+
+  function applyGroupValue(target, group, recipe) {
+    if (!target || !recipe) {
+      return;
+    }
+
+    group.fields.forEach(function (field) {
+      target[field] = cloneValue(recipe[field]);
+    });
+  }
+
+  function compareRecipeVersions(baseRecipe, localRecipe, remoteRecipe, preferredSide) {
+    var base = normalizeConflictRecipe(baseRecipe);
+    var local = normalizeConflictRecipe(localRecipe) || normalizeConflictRecipe({});
+    var remote = normalizeConflictRecipe(remoteRecipe);
+    var side = preferredSide === "remote" ? "remote" : "local";
+
+    if (!base || !base.id) {
+      return {
+        hasConflict: false,
+        deletedRemotely: false,
+        conflicts: [],
+        baseRecipe: base,
+        localRecipe: local,
+        remoteRecipe: remote,
+        mergedRecipe: normalizeConflictRecipe(local)
+      };
+    }
+
+    if (!remote) {
+      return {
+        hasConflict: true,
+        deletedRemotely: true,
+        conflicts: [{
+          key: "receita",
+          label: "Receita",
+          base: base.titulo || "Receita existente",
+          local: local.titulo || "Sua versao atual",
+          remote: "Receita removida no GitHub."
+        }],
+        baseRecipe: base,
+        localRecipe: local,
+        remoteRecipe: null,
+        mergedRecipe: side === "remote" ? null : normalizeConflictRecipe(local)
+      };
+    }
+
+    var merged = normalizeConflictRecipe(remote);
+    var conflicts = [];
+
+    CONFLICT_GROUPS.forEach(function (group) {
+      var baseValue = getGroupValue(base, group);
+      var localValue = getGroupValue(local, group);
+      var remoteValue = getGroupValue(remote, group);
+      var localChanged = !valuesEqual(localValue, baseValue);
+      var remoteChanged = !valuesEqual(remoteValue, baseValue);
+
+      if (localChanged && remoteChanged && !valuesEqual(localValue, remoteValue)) {
+        conflicts.push({
+          key: group.key,
+          label: group.label,
+          base: baseValue,
+          local: localValue,
+          remote: remoteValue
+        });
+        applyGroupValue(merged, group, side === "remote" ? remote : local);
+        return;
+      }
+
+      if (localChanged) {
+        applyGroupValue(merged, group, local);
+        return;
+      }
+
+      if (remoteChanged) {
+        applyGroupValue(merged, group, remote);
+        return;
+      }
+
+      applyGroupValue(merged, group, base);
+    });
+
+    merged.id = local.id || remote.id || base.id || "";
+    merged.criadoEm = base.criadoEm || remote.criadoEm || local.criadoEm || "";
+    merged.atualizadoEm = remote.atualizadoEm || local.atualizadoEm || base.atualizadoEm || "";
+
+    return {
+      hasConflict: conflicts.length > 0,
+      deletedRemotely: false,
+      conflicts: conflicts,
+      baseRecipe: base,
+      localRecipe: local,
+      remoteRecipe: remote,
+      mergedRecipe: merged
+    };
+  }
+
+  function buildConflictSignature(conflictState) {
+    return JSON.stringify({
+      id: conflictState && conflictState.localRecipe ? conflictState.localRecipe.id : "",
+      deletedRemotely: Boolean(conflictState && conflictState.deletedRemotely),
+      conflicts: (conflictState && conflictState.conflicts || []).map(function (conflict) {
+        return {
+          key: conflict.key,
+          base: conflict.base,
+          local: conflict.local,
+          remote: conflict.remote
+        };
+      })
+    });
+  }
+
+  function resolveConflictChoice(conflictState, choice) {
+    var preferredSide = choice === "remote" ? "remote" : "local";
+
+    if (!conflictState) {
+      return null;
+    }
+
+    if (conflictState.deletedRemotely) {
+      return preferredSide === "remote"
+        ? null
+        : normalizeConflictRecipe(conflictState.localRecipe);
+    }
+
+    return compareRecipeVersions(
+      conflictState.baseRecipe,
+      conflictState.localRecipe,
+      conflictState.remoteRecipe,
+      preferredSide
+    ).mergedRecipe;
   }
 
   function ensureCategory(data, recipe) {
@@ -362,6 +573,97 @@
 
   function estimateRecipeSize(recipe) {
     return new Blob([JSON.stringify(recipe || {})]).size;
+  }
+
+  function findRecipeInData(data, id) {
+    if (!data || !Array.isArray(data.receitas)) {
+      return null;
+    }
+
+    return data.receitas.find(function (recipe) {
+      return String(recipe.id) === String(id);
+    }) || null;
+  }
+
+  async function prepareRecipeForSave(localRecipe, baseSnapshot, remoteData, options) {
+    var normalizedLocal = normalizeRecipe(localRecipe);
+    var normalizedBase = normalizeConflictRecipe(baseSnapshot);
+    var remoteRecipe = normalizedLocal.id ? findRecipeInData(remoteData, normalizedLocal.id) : null;
+
+    if (!normalizedBase || !normalizedBase.id) {
+      return normalizedLocal;
+    }
+
+    var comparison = compareRecipeVersions(normalizedBase, normalizedLocal, remoteRecipe);
+
+    if (!comparison.hasConflict) {
+      return normalizeRecipe(Object.assign({}, comparison.mergedRecipe, {
+        id: normalizedLocal.id,
+        criadoEm: comparison.mergedRecipe && comparison.mergedRecipe.criadoEm
+          ? comparison.mergedRecipe.criadoEm
+          : normalizedLocal.criadoEm
+      }));
+    }
+
+    logDiagnostic({
+      source: "storage",
+      kind: "conflict",
+      status: "detected",
+      message: comparison.deletedRemotely
+        ? "A receita foi removida em outro dispositivo durante a edicao."
+        : "Conflito detectado com outra edicao desta receita.",
+      details: comparison.conflicts.map(function (conflict) {
+        return conflict.label;
+      }).join(", ")
+    });
+
+    var saveOptions = options || {};
+    var conflictSelections = saveOptions.conflictSelections || (saveOptions.conflictSelections = {});
+    var signature = buildConflictSignature(comparison);
+    var resolution = conflictSelections[signature];
+
+    if (!resolution) {
+      if (typeof saveOptions.conflictResolver !== "function") {
+        throw createStorageError("Conflito detectado ao salvar esta receita.", "conflict_detected", {
+          conflict: comparison
+        });
+      }
+
+      resolution = await saveOptions.conflictResolver(comparison);
+
+      if (!resolution || resolution.choice === "cancel") {
+        throw createStorageError("Salvamento cancelado para revisar o conflito.", "conflict_cancelled", {
+          conflict: comparison
+        });
+      }
+
+      conflictSelections[signature] = resolution;
+    }
+
+    var resolvedRecipe = resolveConflictChoice(comparison, resolution.choice);
+
+    if (!resolvedRecipe) {
+      throw createStorageError("A versao remota removeu esta receita. Nenhuma alteracao foi gravada.", "remote_deleted", {
+        conflict: comparison
+      });
+    }
+
+    logDiagnostic({
+      source: "storage",
+      kind: "conflict",
+      status: "resolved",
+      message: resolution.choice === "remote"
+        ? "Conflito resolvido priorizando a versao remota."
+        : "Conflito resolvido priorizando suas mudancas locais.",
+      details: comparison.conflicts.map(function (conflict) {
+        return conflict.label;
+      }).join(", ")
+    });
+
+    return normalizeRecipe(Object.assign({}, resolvedRecipe, {
+      id: normalizedLocal.id,
+      criadoEm: resolvedRecipe.criadoEm || normalizedLocal.criadoEm
+    }));
   }
 
   function removeLocalRecipe(id) {
@@ -448,33 +750,41 @@
     };
   }
 
-  async function saveRecipe(recipe) {
+  async function saveRecipe(recipe, options) {
+    var baseSnapshot = recipe && recipe._lastSyncedSnapshot
+      ? normalizeConflictRecipe(recipe._lastSyncedSnapshot)
+      : null;
     var normalized = normalizeRecipe(recipe);
+    var saveOptions = options || {};
 
     if (window.GitHubSync.hasToken()) {
       var current = await window.GitHubSync.lerReceitas();
+      var recipeToPersist = await prepareRecipeForSave(normalized, baseSnapshot, current.data, saveOptions);
       var nextData = cloneData(current.data);
 
-      ensureCategory(nextData, normalized);
-      upsertRecipe(nextData, normalized);
+      ensureCategory(nextData, recipeToPersist);
+      upsertRecipe(nextData, recipeToPersist);
       validateRepositorySize(nextData);
 
       await window.GitHubSync.salvarComRetry(
         nextData,
         current.sha,
-        (recipe.id ? "Atualiza receita: " : "Adiciona receita: ") + normalized.titulo,
-        function (latestData) {
-          ensureCategory(latestData, normalized);
-          upsertRecipe(latestData, normalized);
+        (recipe.id ? "Atualiza receita: " : "Adiciona receita: ") + recipeToPersist.titulo,
+        async function (latestData) {
+          var retryRecipe = await prepareRecipeForSave(recipeToPersist, baseSnapshot, latestData, saveOptions);
+          ensureCategory(latestData, retryRecipe);
+          upsertRecipe(latestData, retryRecipe);
           validateRepositorySize(latestData);
           return latestData;
         }
       );
 
-      removeLocalRecipe(normalized.id);
+      removeLocalRecipe(recipeToPersist.id);
       invalidateCache();
       noteSyncSuccess("github", "Alteracao sincronizada com sucesso.");
-      return normalized;
+      return Object.assign({}, recipeToPersist, {
+        _lastSyncedSnapshot: normalizeConflictRecipe(recipeToPersist)
+      });
     }
 
     var localData = getLocalData();
@@ -596,6 +906,7 @@
     refreshSync: refreshSync,
     initDefaultData: initDefaultData,
     slugify: slugify,
+    captureConflictSnapshot: normalizeConflictRecipe,
     clearLocalData: clearLocalData,
     estimateRecipeSize: estimateRecipeSize,
     __private: {
@@ -605,6 +916,11 @@
       mergeCategories: mergeCategories,
       mergeData: mergeData,
       normalizeRecipe: normalizeRecipe,
+      normalizeConflictRecipe: normalizeConflictRecipe,
+      compareRecipeVersions: compareRecipeVersions,
+      buildConflictSignature: buildConflictSignature,
+      resolveConflictChoice: resolveConflictChoice,
+      prepareRecipeForSave: prepareRecipeForSave,
       validateRepositorySize: validateRepositorySize
     }
   };

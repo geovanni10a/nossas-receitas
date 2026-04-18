@@ -10,6 +10,7 @@ Site estatico em HTML, CSS e JavaScript puro com visual de livro de receitas ant
 - Deteccao automatica de `owner/repo` em GitHub Pages, com override manual para forks.
 - Preferencia de movimento com modo automatico, reduzido ou completo.
 - PWA instalavel com `manifest.webmanifest`, service worker, cache do app shell e fallback offline estilizado.
+- Resolucao assistida de conflito em 3 vias no admin quando a mesma receita muda em dois dispositivos.
 - Painel de uso de espaco com barra de progresso, alertas em thresholds e top-5 receitas mais pesadas.
 - Botao para recomprimir a foto de receitas pesadas direto no admin.
 - Suite Playwright expandida cobrindo XSS, badge de sync, wizard e armazenamento.

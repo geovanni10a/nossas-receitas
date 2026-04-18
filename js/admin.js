@@ -2,6 +2,7 @@
   var h = window.NRDom && window.NRDom.h;
   var state = {
     recipeId: null,
+    lastSyncedSnapshot: null,
     tags: [],
     photoData: "",
     photoThumbData: "",
@@ -709,7 +710,10 @@
       fotoThumb: state.photoThumbData,
       ingredientes: snapshot.ingredientes,
       modoPreparo: snapshot.modoPreparo,
-      dica: snapshot.dica
+      dica: snapshot.dica,
+      _lastSyncedSnapshot: state.lastSyncedSnapshot
+        ? window.NRStorage.captureConflictSnapshot(state.lastSyncedSnapshot)
+        : null
     };
   }
 
@@ -768,6 +772,7 @@
 
   async function fillForm(recipe) {
     state.recipeId = recipe.id;
+    state.lastSyncedSnapshot = window.NRStorage.captureConflictSnapshot(recipe);
     state.draftKey = getDraftKey(recipe.id);
 
     byId("admin-titulo").textContent = "Editar receita";
@@ -831,6 +836,174 @@
     }
 
     return error.message || "Nao foi possivel validar o token.";
+  }
+
+  function summarizeConflictValue(conflictKey, value) {
+    if (conflictKey === "receita") {
+      return String(value || "Sem detalhes");
+    }
+
+    if (conflictKey === "categoria") {
+      return value && (value.categoriaNome || value.categoriaId)
+        ? String(value.categoriaNome || value.categoriaId)
+        : "Sem categoria";
+    }
+
+    if (conflictKey === "foto") {
+      return value && value.foto
+        ? "Foto atualizada"
+        : "Sem foto";
+    }
+
+    if (Array.isArray(value)) {
+      return value.length ? value.join(" • ") : "Sem itens";
+    }
+
+    if (typeof value === "number") {
+      return String(value);
+    }
+
+    return String(value || "Vazio");
+  }
+
+  function buildConflictColumn(title, body) {
+    return h(
+      "div",
+      { className: "conflito-coluna" },
+      h("span", null, title),
+      h("p", null, body)
+    );
+  }
+
+  function openConflictModal(conflict) {
+    var shell = byId("conflito-modal-shell");
+
+    if (!shell) {
+      return Promise.resolve({ choice: "cancel" });
+    }
+
+    return new Promise(function (resolve) {
+      var previousActive = document.activeElement;
+      var titleId = "conflito-modal-titulo";
+      var message = conflict.deletedRemotely
+        ? "A receita foi apagada no GitHub enquanto voce ainda editava neste dispositivo."
+        : "A receita mudou em outro dispositivo. As mudancas sem conflito seguem preservadas automaticamente; escolha qual lado vence nos campos abaixo.";
+      var localLabel = conflict.deletedRemotely ? "Restaurar minha versao" : "Manter minhas mudancas";
+      var remoteLabel = conflict.deletedRemotely ? "Aceitar exclusao remota" : "Usar versao do GitHub";
+      var cleanup;
+
+      function finish(result) {
+        document.body.classList.remove("modal-open");
+        shell.hidden = true;
+        shell.replaceChildren();
+        document.removeEventListener("keydown", handleKeydown);
+
+        if (previousActive && typeof previousActive.focus === "function") {
+          previousActive.focus();
+        }
+
+        resolve(result);
+      }
+
+      function handleKeydown(event) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          finish({ choice: "cancel" });
+        }
+      }
+
+      cleanup = finish;
+      shell.hidden = false;
+      document.body.classList.add("modal-open");
+
+      shell.replaceChildren(
+        h("button", {
+          className: "modal-backdrop",
+          type: "button",
+          "aria-label": "Fechar o comparativo de conflito",
+          onClick: function () {
+            cleanup({ choice: "cancel" });
+          }
+        }),
+        h(
+          "section",
+          {
+            className: "modal-card pagina-textura",
+            role: "dialog",
+            "aria-modal": "true",
+            "aria-labelledby": titleId
+          },
+          h("p", { className: "sobretitulo" }, "Conflito de edicao"),
+          h("h2", { id: titleId }, conflict.deletedRemotely ? "Esta receita foi removida no GitHub" : "Encontramos alteracoes concorrentes"),
+          h("p", { className: "conflito-intro" }, message),
+          h("p", { className: "conflito-nota" }, "Seu escolhido vence apenas nos campos em disputa. O resto continua mesclado automaticamente."),
+          h(
+            "div",
+            { className: "conflito-lista" },
+            conflict.conflicts.map(function (item) {
+              return h(
+                "article",
+                { className: "conflito-item" },
+                h("strong", null, item.label),
+                h(
+                  "div",
+                  { className: "conflito-grid" },
+                  buildConflictColumn("Antes", summarizeConflictValue(item.key, item.base)),
+                  buildConflictColumn("Sua edicao", summarizeConflictValue(item.key, item.local)),
+                  buildConflictColumn("GitHub", summarizeConflictValue(item.key, item.remote))
+                )
+              );
+            })
+          ),
+          h(
+            "div",
+            { className: "conflito-acoes" },
+            h(
+              "button",
+              {
+                className: "botao-secundario",
+                type: "button",
+                onClick: function () {
+                  cleanup({ choice: "cancel" });
+                }
+              },
+              "Cancelar"
+            ),
+            h(
+              "button",
+              {
+                className: "botao-secundario",
+                type: "button",
+                onClick: function () {
+                  cleanup({ choice: "remote" });
+                }
+              },
+              remoteLabel
+            ),
+            h(
+              "button",
+              {
+                className: "botao-primario",
+                type: "button",
+                onClick: function () {
+                  cleanup({ choice: "local" });
+                }
+              },
+              localLabel
+            )
+          )
+        )
+      );
+
+      document.addEventListener("keydown", handleKeydown);
+      window.setTimeout(function () {
+        var primary = shell.querySelector(".botao-primario");
+
+        if (primary) {
+          primary.focus();
+        }
+      }, 0);
+    });
   }
 
   async function renderSpaceUsage() {
@@ -1284,8 +1457,11 @@
       showToast(window.GitHubSync.hasToken() ? "Salvando no GitHub..." : "Salvando neste navegador...", false);
 
       try {
-        saved = await window.NRStorage.saveRecipe(await buildRecipePayload());
+        saved = await window.NRStorage.saveRecipe(await buildRecipePayload(), {
+          conflictResolver: openConflictModal
+        });
         state.recipeId = saved.id;
+        state.lastSyncedSnapshot = window.NRStorage.captureConflictSnapshot(saved);
         state.draftKey = getDraftKey(saved.id);
         setPersistedSnapshot(collectFormSnapshot());
         clearDraft(previousDraftKey);
@@ -1298,6 +1474,19 @@
           window.location.href = "livro.html?receita=" + saved.id + "&categoria=" + saved.categoriaId;
         }, 1600);
       } catch (error) {
+        if (error && error.code === "conflict_cancelled") {
+          showToast("Salvamento pausado para voce revisar o conflito.", false);
+          return;
+        }
+
+        if (error && error.code === "remote_deleted") {
+          showToast("A versao remota removeu esta receita. Voltando ao livro...", true);
+          window.setTimeout(function () {
+            window.location.href = "livro.html?mensagem=" + encodeURIComponent("A receita foi removida em outro dispositivo.");
+          }, 1400);
+          return;
+        }
+
         showToast(error.message || "Nao foi possivel salvar a receita.", true);
       } finally {
         state.isSavingRecipe = false;
@@ -1335,6 +1524,7 @@
 
     await window.NRStorage.initDefaultData();
     mountSharedControls();
+    state.lastSyncedSnapshot = null;
     state.draftKey = getDraftKey();
     applyRepoFields(window.GitHubSync.getRepoInfo());
     await renderCategoryOptions();

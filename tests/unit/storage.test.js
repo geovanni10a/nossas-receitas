@@ -81,6 +81,51 @@ describe("NRStorage", () => {
     expect(() => storage.__private.validateRepositorySize(bigRecipe)).toThrow(/grande demais/);
   });
 
+  it("detecta conflito em 3 vias e preserva mudancas independentes ao resolver", () => {
+    const base = storage.__private.normalizeConflictRecipe({
+      id: "1",
+      titulo: "Bolo base",
+      categoriaId: "doces",
+      categoriaNome: "Doces & Sobremesas",
+      tags: ["bolo"],
+      tempoPreparo: "30 min",
+      tempoForno: "",
+      porcoes: 8,
+      dificuldade: "Facil",
+      foto: "",
+      fotoThumb: "",
+      ingredientes: ["2 ovos"],
+      modoPreparo: ["Misture"],
+      dica: "Dica base",
+      criadoEm: "2026-04-18T10:30:00.000Z",
+      atualizadoEm: "2026-04-18T10:30:00.000Z"
+    });
+    const local = storage.__private.normalizeConflictRecipe(Object.assign({}, base, {
+      titulo: "Bolo da Geovanni",
+      dica: "Dica local"
+    }));
+    const remote = storage.__private.normalizeConflictRecipe(Object.assign({}, base, {
+      titulo: "Bolo da Maria",
+      tempoPreparo: "45 min"
+    }));
+
+    const comparison = storage.__private.compareRecipeVersions(base, local, remote);
+    const resolvedLocal = storage.__private.resolveConflictChoice(comparison, "local");
+    const resolvedRemote = storage.__private.resolveConflictChoice(comparison, "remote");
+
+    expect(comparison.hasConflict).toBe(true);
+    expect(comparison.deletedRemotely).toBe(false);
+    expect(comparison.conflicts.map((item) => item.key)).toEqual(["titulo"]);
+
+    expect(resolvedLocal.titulo).toBe("Bolo da Geovanni");
+    expect(resolvedLocal.tempoPreparo).toBe("45 min");
+    expect(resolvedLocal.dica).toBe("Dica local");
+
+    expect(resolvedRemote.titulo).toBe("Bolo da Maria");
+    expect(resolvedRemote.tempoPreparo).toBe("45 min");
+    expect(resolvedRemote.dica).toBe("Dica local");
+  });
+
   it("reaproveita o snapshot cacheado do GitHub quando a rede cai", async () => {
     env.close();
     env = createBrowserEnv({
