@@ -37,6 +37,10 @@
       </div>
       <div class="topo-ferramentas">
         <div id="sync-status-book" class="painel-status-shell"></div>
+        <button class="botao-secundario botao-utilitario botao-busca-mobile" id="toggle-search-book" type="button" aria-label="Abrir a busca de receitas" aria-expanded="false">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <span class="sr-only">Buscar receitas</span>
+        </button>
         <button class="botao-secundario botao-utilitario theme-toggle" id="toggle-theme-book" type="button">Tema automatico</button>
         <button class="botao-secundario botao-utilitario" id="toggle-motion-book" type="button">Movimento automatico</button>
         <a class="botao-secundario" href="admin.html">Adicionar receita</a>
@@ -57,6 +61,7 @@
 
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="js/utils.js"></script>
+  <script src="js/diagnostics.js"></script>
   <script src="js/github-sync.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/sync-status.js"></script>

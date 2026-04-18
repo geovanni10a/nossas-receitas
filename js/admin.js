@@ -5,7 +5,12 @@
     photoData: "",
     draggingItem: null,
     isProcessingPhoto: false,
-    photoJobId: 0
+    photoJobId: 0,
+    persistedSignature: "",
+    lastDraftSignature: "",
+    draftKey: "nr_draft_new",
+    draftTimer: null,
+    isSavingRecipe: false
   };
 
   var PHOTO_LIMIT_BYTES = 150 * 1024;
@@ -14,6 +19,8 @@
   var RECOMPRESS_LIMIT_BYTES = 72 * 1024;
   var RECOMPRESS_TARGET_SIZE = 420;
   var RECOMPRESS_MIN_SIZE = 260;
+  var DRAFT_KEY_PREFIX = "nr_draft_";
+  var DRAFT_INTERVAL_MS = 5000;
 
   function byId(id) {
     return document.getElementById(id);
@@ -25,6 +32,18 @@
 
   function getParams() {
     return new URLSearchParams(window.location.search);
+  }
+
+  function getDraftKey(recipeId) {
+    return DRAFT_KEY_PREFIX + String(recipeId || state.recipeId || getParams().get("id") || "new");
+  }
+
+  function safeParseJson(raw, fallback) {
+    try {
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (error) {
+      return fallback;
+    }
   }
 
   function normalizeDifficulty(value) {
@@ -49,6 +68,142 @@
     option.value = value;
     option.textContent = label;
     return option;
+  }
+
+  function createEmptySnapshot() {
+    return {
+      titulo: "",
+      categoria: "",
+      novaCategoria: "",
+      tempoPreparo: "",
+      tempoForno: "",
+      porcoes: "",
+      dificuldade: "Facil",
+      dica: "",
+      tags: [],
+      foto: "",
+      ingredientes: [],
+      modoPreparo: []
+    };
+  }
+
+  function normalizeSnapshot(snapshot) {
+    var data = Object.assign(createEmptySnapshot(), snapshot || {});
+
+    data.tags = Array.isArray(data.tags) ? data.tags.map(function (item) {
+      return String(item || "").trim();
+    }).filter(Boolean) : [];
+    data.ingredientes = Array.isArray(data.ingredientes) ? data.ingredientes.map(function (item) {
+      return String(item || "").trim();
+    }).filter(Boolean) : [];
+    data.modoPreparo = Array.isArray(data.modoPreparo) ? data.modoPreparo.map(function (item) {
+      return String(item || "").trim();
+    }).filter(Boolean) : [];
+
+    return data;
+  }
+
+  function collectFormSnapshot() {
+    return normalizeSnapshot({
+      titulo: byId("titulo").value.trim(),
+      categoria: byId("categoria").value,
+      novaCategoria: byId("nova-categoria").value.trim(),
+      tempoPreparo: byId("tempo-preparo").value.trim(),
+      tempoForno: byId("tempo-forno").value.trim(),
+      porcoes: byId("porcoes").value.trim(),
+      dificuldade: normalizeDifficulty(byId("dificuldade").value),
+      dica: byId("dica").value.trim(),
+      tags: state.tags.slice(),
+      foto: state.photoData,
+      ingredientes: getListValues("ingredientes-lista"),
+      modoPreparo: getListValues("passos-lista")
+    });
+  }
+
+  function getSnapshotSignature(snapshot) {
+    return JSON.stringify(normalizeSnapshot(snapshot));
+  }
+
+  function isMeaningfulSnapshot(snapshot) {
+    var data = normalizeSnapshot(snapshot);
+
+    return Boolean(
+      data.titulo
+      || data.novaCategoria
+      || data.tempoPreparo
+      || data.tempoForno
+      || data.porcoes
+      || data.dica
+      || data.foto
+      || data.tags.length
+      || data.ingredientes.length
+      || data.modoPreparo.length
+      || (data.categoria && data.categoria !== "__new__")
+    );
+  }
+
+  function setPersistedSnapshot(snapshot) {
+    state.persistedSignature = getSnapshotSignature(snapshot || createEmptySnapshot());
+  }
+
+  function clearDraft(key) {
+    window.localStorage.removeItem(key || state.draftKey);
+    state.lastDraftSignature = "";
+  }
+
+  function readDraft(key) {
+    var draft = safeParseJson(window.localStorage.getItem(key || state.draftKey), null);
+
+    if (!draft || !draft.snapshot) {
+      return null;
+    }
+
+    return {
+      savedAt: draft.savedAt || "",
+      snapshot: normalizeSnapshot(draft.snapshot)
+    };
+  }
+
+  function isDraftDirty() {
+    return getSnapshotSignature(collectFormSnapshot()) !== state.persistedSignature;
+  }
+
+  function persistDraftNow(force) {
+    var snapshot = collectFormSnapshot();
+    var signature = getSnapshotSignature(snapshot);
+
+    if (!force && !isDraftDirty()) {
+      clearDraft();
+      return false;
+    }
+
+    if (!isMeaningfulSnapshot(snapshot)) {
+      clearDraft();
+      return false;
+    }
+
+    if (!force && signature === state.lastDraftSignature) {
+      return false;
+    }
+
+    window.localStorage.setItem(state.draftKey, JSON.stringify({
+      savedAt: new Date().toISOString(),
+      snapshot: snapshot
+    }));
+    state.lastDraftSignature = signature;
+    return true;
+  }
+
+  function startDraftAutosave() {
+    if (state.draftTimer) {
+      window.clearInterval(state.draftTimer);
+    }
+
+    state.draftTimer = window.setInterval(function () {
+      if (!state.isSavingRecipe) {
+        persistDraftNow(false);
+      }
+    }, DRAFT_INTERVAL_MS);
   }
 
   function showToast(message, isError) {
@@ -350,47 +505,29 @@
   }
 
   function validateForm() {
-    var title = byId("titulo");
-    var category = byId("categoria");
-    var newCategory = byId("nova-categoria");
-    var ingredients = getListValues("ingredientes-lista");
-    var steps = getListValues("passos-lista");
-    var isValid = true;
+    var validation = window.NRValidation.validateRecipe(Object.assign(collectFormSnapshot(), {
+      isProcessingPhoto: state.isProcessingPhoto
+    }));
+    var elements = {
+      titulo: byId("titulo"),
+      categoria: byId("categoria"),
+      novaCategoria: byId("nova-categoria"),
+      foto: byId("foto"),
+      porcoes: byId("porcoes"),
+      tags: byId("tag-input"),
+      ingredientes: byId("ingredientes-lista"),
+      modoPreparo: byId("passos-lista"),
+      dificuldade: byId("dificuldade")
+    };
 
     clearErrors();
     showToast("", false);
 
-    if (!title.value.trim()) {
-      showError("titulo", "O titulo e obrigatorio.", title);
-      isValid = false;
-    }
+    Object.keys(validation.errors).forEach(function (field) {
+      showError(field, validation.errors[field], elements[field]);
+    });
 
-    if (!category.value) {
-      showError("categoria", "Escolha uma categoria.", category);
-      isValid = false;
-    }
-
-    if (category.value === "__new__" && !newCategory.value.trim()) {
-      showError("novaCategoria", "Digite o nome da nova categoria.", newCategory);
-      isValid = false;
-    }
-
-    if (!ingredients.length) {
-      showError("ingredientes", "Adicione pelo menos um ingrediente.");
-      isValid = false;
-    }
-
-    if (!steps.length) {
-      showError("modoPreparo", "Adicione pelo menos um passo.");
-      isValid = false;
-    }
-
-    if (state.isProcessingPhoto) {
-      showError("foto", "Aguarde o processamento da foto terminar.", byId("foto"));
-      isValid = false;
-    }
-
-    return isValid;
+    return validation.valid;
   }
 
   function isSupportedImageFile(file) {
@@ -480,73 +617,126 @@
   }
 
   async function buildRecipePayload() {
-    var categoryValue = byId("categoria").value;
+    var snapshot = collectFormSnapshot();
+    var categoryValue = snapshot.categoria;
     var categoryData = categoryValue === "__new__"
       ? null
       : await window.NRStorage.getCategoryById(categoryValue);
     var categoryName = categoryValue === "__new__"
-      ? byId("nova-categoria").value.trim()
+      ? snapshot.novaCategoria
       : (categoryData ? categoryData.nome : categoryValue);
 
     return {
       id: state.recipeId,
-      titulo: byId("titulo").value.trim(),
+      titulo: snapshot.titulo,
       categoriaId: categoryValue === "__new__" ? categoryName : categoryValue,
       categoriaNome: categoryName,
       categoriaIcone: categoryData ? categoryData.icone : "",
       categoriaCor: categoryData ? categoryData.cor : "",
-      tags: state.tags.slice(),
-      tempoPreparo: byId("tempo-preparo").value.trim(),
-      tempoForno: byId("tempo-forno").value.trim(),
-      porcoes: byId("porcoes").value ? Number(byId("porcoes").value) : 0,
-      dificuldade: normalizeDifficulty(byId("dificuldade").value),
+      tags: snapshot.tags.slice(),
+      tempoPreparo: snapshot.tempoPreparo,
+      tempoForno: snapshot.tempoForno,
+      porcoes: snapshot.porcoes ? Number(snapshot.porcoes) : 0,
+      dificuldade: snapshot.dificuldade,
       foto: state.photoData,
-      ingredientes: getListValues("ingredientes-lista"),
-      modoPreparo: getListValues("passos-lista"),
-      dica: byId("dica").value.trim()
+      ingredientes: snapshot.ingredientes,
+      modoPreparo: snapshot.modoPreparo,
+      dica: snapshot.dica
     };
   }
 
-  async function fillForm(recipe) {
-    var hasCategory = false;
+  async function applyFormSnapshot(snapshot) {
+    var data = normalizeSnapshot(snapshot);
+    var categoryValues;
 
-    state.recipeId = recipe.id;
-    state.tags = Array.isArray(recipe.tags) ? recipe.tags.slice() : [];
-    state.photoData = recipe.foto || "";
+    byId("titulo").value = data.titulo;
+    await renderCategoryOptions(data.categoria);
+    categoryValues = Array.prototype.slice.call(byId("categoria").options).map(function (option) {
+      return option.value;
+    });
 
-    byId("admin-titulo").textContent = "Editar receita";
-    byId("titulo").value = recipe.titulo || "";
-    await renderCategoryOptions(recipe.categoriaId);
-
-    hasCategory = byId("categoria").value === recipe.categoriaId;
-    if (!hasCategory) {
+    if (data.categoria && categoryValues.indexOf(data.categoria) !== -1) {
+      byId("categoria").value = data.categoria;
+      byId("nova-categoria").value = data.novaCategoria;
+    } else if (data.categoria === "__new__" || data.novaCategoria) {
       byId("categoria").value = "__new__";
-      byId("nova-categoria").value = recipe.categoriaNome || recipe.categoriaId || "";
+      byId("nova-categoria").value = data.novaCategoria || data.categoria;
     }
 
     toggleNewCategoryField();
 
-    byId("tempo-preparo").value = recipe.tempoPreparo || "";
-    byId("tempo-forno").value = recipe.tempoForno || "";
-    byId("porcoes").value = recipe.porcoes || "";
-    byId("dificuldade").value = normalizeDifficulty(recipe.dificuldade);
-    byId("dica").value = recipe.dica || "";
+    byId("tempo-preparo").value = data.tempoPreparo;
+    byId("tempo-forno").value = data.tempoForno;
+    byId("porcoes").value = data.porcoes;
+    byId("dificuldade").value = normalizeDifficulty(data.dificuldade);
+    byId("dica").value = data.dica;
 
-    setPreview(recipe.foto || "assets/sem-foto.svg");
+    state.tags = data.tags.slice();
+    state.photoData = data.foto || "";
+
+    setPreview(state.photoData || "assets/sem-foto.svg");
     renderTags();
 
     byId("ingredientes-lista").innerHTML = "";
     byId("passos-lista").innerHTML = "";
 
-    (recipe.ingredientes || []).forEach(function (item) {
-      addListItem("ingredientes-lista", "ingredientes", item);
-    });
+    if (data.ingredientes.length) {
+      data.ingredientes.forEach(function (item) {
+        addListItem("ingredientes-lista", "ingredientes", item);
+      });
+    } else {
+      addListItem("ingredientes-lista", "ingredientes", "");
+    }
 
-    (recipe.modoPreparo || []).forEach(function (item) {
-      addListItem("passos-lista", "passos", item);
+    if (data.modoPreparo.length) {
+      data.modoPreparo.forEach(function (item) {
+        addListItem("passos-lista", "passos", item);
+      });
+    } else {
+      addListItem("passos-lista", "passos", "");
+    }
+  }
+
+  async function fillForm(recipe) {
+    state.recipeId = recipe.id;
+    state.draftKey = getDraftKey(recipe.id);
+
+    byId("admin-titulo").textContent = "Editar receita";
+    await applyFormSnapshot({
+      titulo: recipe.titulo || "",
+      categoria: recipe.categoriaId || "",
+      novaCategoria: recipe.categoriaNome || "",
+      tempoPreparo: recipe.tempoPreparo || "",
+      tempoForno: recipe.tempoForno || "",
+      porcoes: recipe.porcoes ? String(recipe.porcoes) : "",
+      dificuldade: normalizeDifficulty(recipe.dificuldade),
+      dica: recipe.dica || "",
+      tags: Array.isArray(recipe.tags) ? recipe.tags.slice() : [],
+      foto: recipe.foto || "",
+      ingredientes: recipe.ingredientes || [],
+      modoPreparo: recipe.modoPreparo || []
     });
 
     byId("delete-recipe").hidden = false;
+  }
+
+  async function restoreDraftIfAvailable() {
+    var draft = readDraft();
+
+    if (!draft || !draft.snapshot) {
+      state.lastDraftSignature = "";
+      return false;
+    }
+
+    if (getSnapshotSignature(draft.snapshot) === state.persistedSignature) {
+      clearDraft();
+      return false;
+    }
+
+    await applyFormSnapshot(draft.snapshot);
+    state.lastDraftSignature = getSnapshotSignature(draft.snapshot);
+    showToast("Rascunho recuperado automaticamente.", false);
+    return true;
   }
 
   function describeGitHubError(error) {
@@ -628,6 +818,61 @@
     });
   }
 
+  function renderDiagnostics() {
+    var list = byId("diagnostico-lista");
+    var entries = window.NRDiagnostics ? window.NRDiagnostics.getEntries(20) : [];
+
+    if (!list) {
+      return;
+    }
+
+    list.innerHTML = "";
+
+    if (!entries.length) {
+      list.innerHTML = '<div class="diagnostico-item"><strong>Ainda nao ha eventos registrados.</strong><p>As proximas leituras, gravacoes e erros de sincronizacao aparecerao aqui.</p></div>';
+      return;
+    }
+
+    entries.forEach(function (entry) {
+      var item = document.createElement("article");
+      var title = document.createElement("strong");
+      var message = document.createElement("p");
+      var meta = document.createElement("small");
+
+      item.className = "diagnostico-item";
+      title.textContent = entry.source + " - " + entry.kind + " - " + entry.status;
+      message.textContent = entry.message;
+      meta.textContent = window.NRUtils.formatDateTime(entry.at) + (entry.details ? " | " + entry.details : "");
+
+      item.appendChild(title);
+      item.appendChild(message);
+      item.appendChild(meta);
+      list.appendChild(item);
+    });
+  }
+
+  function exportDiagnostics() {
+    var text = window.NRDiagnostics ? window.NRDiagnostics.exportText() : "";
+    var blob;
+    var url;
+    var link;
+
+    if (!text) {
+      showToast("Ainda nao ha log suficiente para exportar.", true);
+      return;
+    }
+
+    blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    url = window.URL.createObjectURL(blob);
+    link = document.createElement("a");
+    link.href = url;
+    link.download = "nossas-receitas-log.txt";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
+
   async function recompressRecipePhoto(recipeId) {
     var recipe = await window.NRStorage.getRecipeById(recipeId);
     var oldBytes;
@@ -672,6 +917,7 @@
 
       try {
         await window.NRStorage.deleteRecipe(state.recipeId);
+        clearDraft(getDraftKey(state.recipeId));
         await renderSpaceUsage();
         window.location.href = "livro.html";
       } catch (error) {
@@ -805,6 +1051,15 @@
         showToast(error.message || "Nao foi possivel atualizar o uso de espaco.", true);
       });
     });
+    byId("btn-exportar-log").addEventListener("click", exportDiagnostics);
+    byId("btn-limpar-log").addEventListener("click", function () {
+      if (!window.NRDiagnostics) {
+        return;
+      }
+
+      window.NRDiagnostics.clear();
+      renderDiagnostics();
+    });
 
     ["repo-owner", "repo-name", "repo-branch"].forEach(function (id) {
       byId(id).addEventListener("change", function () {
@@ -816,6 +1071,7 @@
     byId("recipe-form").addEventListener("submit", async function (event) {
       var submitButton = byId("btn-salvar-receita");
       var saved;
+      var previousDraftKey = state.draftKey;
 
       event.preventDefault();
 
@@ -823,11 +1079,17 @@
         return;
       }
 
+      state.isSavingRecipe = true;
       submitButton.disabled = true;
       showToast(window.GitHubSync.hasToken() ? "Salvando no GitHub..." : "Salvando neste navegador...", false);
 
       try {
         saved = await window.NRStorage.saveRecipe(await buildRecipePayload());
+        state.recipeId = saved.id;
+        state.draftKey = getDraftKey(saved.id);
+        setPersistedSnapshot(collectFormSnapshot());
+        clearDraft(previousDraftKey);
+        clearDraft(state.draftKey);
         await renderSpaceUsage();
         showToast(window.GitHubSync.hasToken() ? "Receita sincronizada com sucesso! OK" : "Receita salva neste navegador! OK", false);
 
@@ -837,22 +1099,42 @@
       } catch (error) {
         showToast(error.message || "Nao foi possivel salvar a receita.", true);
       } finally {
+        state.isSavingRecipe = false;
         submitButton.disabled = false;
         updateSaveButtonLabel();
       }
     });
+
+    window.addEventListener("beforeunload", function (event) {
+      if (!isDraftDirty()) {
+        return;
+      }
+
+      persistDraftNow(true);
+      event.preventDefault();
+      event.returnValue = "";
+    });
+
+    window.addEventListener("pagehide", function () {
+      if (isDraftDirty()) {
+        persistDraftNow(true);
+      }
+    });
+
+    window.addEventListener("nr:diagnostics-changed", renderDiagnostics);
   }
 
   async function initAdmin() {
     var recipeId;
     var recipe;
 
-    if (!document.getElementById("recipe-form") || !window.NRStorage || !window.GitHubSync || !window.NRUtils) {
+    if (!document.getElementById("recipe-form") || !window.NRStorage || !window.GitHubSync || !window.NRUtils || !window.NRValidation) {
       return;
     }
 
     await window.NRStorage.initDefaultData();
     mountSharedControls();
+    state.draftKey = getDraftKey();
     applyRepoFields(window.GitHubSync.getRepoInfo());
     await renderCategoryOptions();
     toggleNewCategoryField();
@@ -862,8 +1144,10 @@
     addListItem("ingredientes-lista", "ingredientes", "");
     addListItem("passos-lista", "passos", "");
     initEvents();
+    startDraftAutosave();
     initDelete();
     await renderSpaceUsage();
+    renderDiagnostics();
 
     if (window.GitHubSync.hasToken() && window.Migration) {
       window.Migration.verificarEMigrar(byId("container-migracao"));
@@ -871,6 +1155,8 @@
 
     recipeId = getParams().get("id");
     if (!recipeId) {
+      setPersistedSnapshot(collectFormSnapshot());
+      await restoreDraftIfAvailable();
       return;
     }
 
@@ -882,6 +1168,8 @@
     }
 
     await fillForm(recipe);
+    setPersistedSnapshot(collectFormSnapshot());
+    await restoreDraftIfAvailable();
 
     if (getParams().get("recompress") === "1" && recipe.foto) {
       recompressRecipePhoto(recipe.id);

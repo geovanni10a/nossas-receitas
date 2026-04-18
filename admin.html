@@ -118,6 +118,21 @@
       <div class="espaco-lista" id="espaco-lista"></div>
     </section>
 
+    <section class="card-admin diagnostico-admin" id="secao-diagnostico">
+      <div class="config-github__topo">
+        <div>
+          <p class="sobretitulo">Diagnostico</p>
+          <h2>Ultimas operacoes de sincronizacao</h2>
+          <p>Use este painel para ver leituras, gravacoes, retries e fallbacks recentes antes de investigar um problema em outro dispositivo.</p>
+        </div>
+        <div class="token-acoes">
+          <button class="botao-secundario" type="button" id="btn-exportar-log">Exportar log</button>
+          <button class="botao-secundario" type="button" id="btn-limpar-log">Limpar log</button>
+        </div>
+      </div>
+      <div class="diagnostico-lista" id="diagnostico-lista"></div>
+    </section>
+
     <div id="container-migracao"></div>
 
     <form class="form-receita" id="recipe-form" novalidate>
@@ -166,15 +181,16 @@
             </label>
           </div>
 
-          <div class="campos-linha">
-            <label class="campo">
-              <span>Porcoes</span>
-              <input type="number" id="porcoes" min="1" step="1" placeholder="8">
-            </label>
+        <div class="campos-linha">
+          <label class="campo">
+            <span>Porcoes</span>
+            <input type="number" id="porcoes" min="1" step="1" placeholder="8">
+            <small class="erro" data-erro="porcoes"></small>
+          </label>
 
-            <label class="campo">
-              <span>Dificuldade</span>
-              <select id="dificuldade">
+          <label class="campo">
+            <span>Dificuldade</span>
+            <select id="dificuldade">
                 <option value="Facil">Facil</option>
                 <option value="Medio">Medio</option>
                 <option value="Dificil">Dificil</option>
@@ -188,6 +204,7 @@
               <div class="tags-lista" id="tags-lista"></div>
               <input type="text" id="tag-input" placeholder="Digite e pressione Enter ou virgula">
             </div>
+            <small class="erro" data-erro="tags"></small>
           </div>
 
           <label class="campo">
@@ -225,10 +242,12 @@
   </main>
 
   <script src="js/utils.js"></script>
+  <script src="js/diagnostics.js"></script>
   <script src="js/github-sync.js"></script>
   <script src="js/migration.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/sync-status.js"></script>
+  <script src="js/validation.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

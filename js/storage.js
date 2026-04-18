@@ -18,6 +18,12 @@
     source: "initial"
   };
 
+  function logDiagnostic(entry) {
+    if (window.NRDiagnostics) {
+      window.NRDiagnostics.log(entry);
+    }
+  }
+
   function defaultCategories() {
     return window.GitHubSync ? window.GitHubSync.getCategoriasIniciais() : [];
   }
@@ -234,6 +240,13 @@
           sha: null,
           error: error
         };
+        logDiagnostic({
+          source: "storage",
+          kind: "sync",
+          status: navigator.onLine ? "fallback" : "offline",
+          message: "Falha ao sincronizar com o GitHub; exibindo dados locais.",
+          details: error && error.message ? error.message : ""
+        });
         setSyncState({
           state: navigator.onLine ? "erro" : "offline",
           message: error && error.message ? error.message : "Nao foi possivel sincronizar com o GitHub.",
@@ -438,6 +451,13 @@
     upsertRecipe(localData, normalized);
     persistLocalData(localData);
     invalidateCache();
+    logDiagnostic({
+      source: "storage",
+      kind: "write",
+      status: "local",
+      message: "Receita salva apenas neste navegador.",
+      details: normalized.titulo
+    });
     setSyncState({
       state: "sem-token",
       message: "Receita salva neste navegador. Configure um token para sincronizar com outros dispositivos.",
@@ -469,6 +489,13 @@
       }
 
       invalidateCache();
+      logDiagnostic({
+        source: "storage",
+        kind: "delete",
+        status: "local",
+        message: "Receita excluida apenas neste navegador.",
+        details: recipeId
+      });
       setSyncState({
         state: "sem-token",
         message: "Receita excluida apenas deste navegador.",

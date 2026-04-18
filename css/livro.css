@@ -212,6 +212,15 @@
   max-width: 520px;
 }
 
+.botao-busca-mobile {
+  display: none;
+}
+
+.botao-busca-mobile svg {
+  width: 18px;
+  height: 18px;
+}
+
 .rotulo-busca {
   position: absolute;
   left: -9999px;
@@ -383,6 +392,68 @@
 @media (max-width: 640px) {
   .marca-livro {
     font-size: var(--texto-xl);
+  }
+}
+
+@media (max-width: 720px) {
+  .pagina-livro {
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .pagina-livro .livro-app {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: visible;
+    grid-template-rows: auto auto;
+  }
+
+  .livro-palco,
+  .folha-livro,
+  .folha-frente {
+    height: auto;
+    min-height: 0;
+  }
+
+  .folha-verso {
+    display: none;
+  }
+
+  .pagina-conteudo {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .livro-palco {
+    perspective: none;
+  }
+
+  .folha-livro.is-turning .folha-frente,
+  .folha-livro.is-turning .folha-verso {
+    animation: fade-pagina 300ms ease;
+  }
+
+  .botao-busca-mobile {
+    display: inline-flex;
+  }
+
+  .busca-shell {
+    display: none;
+    max-width: none;
+    width: 100%;
+  }
+
+  .busca-shell.is-open {
+    display: block;
+    animation: fade-pagina 220ms ease;
+  }
+
+  .dropdown-busca {
+    position: relative;
+    top: var(--espaco-sm);
+    box-shadow: 0 12px 24px var(--cor-sombra);
   }
 }
 

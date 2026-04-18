@@ -122,6 +122,12 @@
     return "https://api.github.com/repos/" + repoInfo.owner + "/" + repoInfo.repo + "/contents/" + repoInfo.filePath;
   }
 
+  function logDiagnostic(entry) {
+    if (window.NRDiagnostics) {
+      window.NRDiagnostics.log(entry);
+    }
+  }
+
   function getCacheStorageKey(repoInfo) {
     var target = repoInfo || getRepoInfo();
     return CACHE_KEY_PREFIX + [target.owner, target.repo, target.branch, target.filePath].join("/");
@@ -390,6 +396,13 @@
     });
 
     if (response.status === 304 && cachedSnapshot) {
+      logDiagnostic({
+        source: "github-sync",
+        kind: "read",
+        status: "cache",
+        message: "Leitura do GitHub validada via cache ETag.",
+        details: repoInfo.owner + "/" + repoInfo.repo + "@" + repoInfo.branch
+      });
       return {
         data: normalizeData(cachedSnapshot.data),
         sha: cachedSnapshot.sha || null,
@@ -406,11 +419,26 @@
     }
 
     if (response.status === 404) {
+      logDiagnostic({
+        source: "github-sync",
+        kind: "read",
+        status: "info",
+        message: "Arquivo remoto ainda nao existe; usando estrutura inicial.",
+        details: repoInfo.owner + "/" + repoInfo.repo + "@" + repoInfo.branch
+      });
       return { data: dadosIniciais(), sha: null, repoInfo: repoInfo };
     }
 
     if (!response.ok) {
-      throw buildReadError(response.status, await safeJson(response), response.headers);
+      var readError = buildReadError(response.status, await safeJson(response), response.headers);
+      logDiagnostic({
+        source: "github-sync",
+        kind: "read",
+        status: "error",
+        message: readError.message,
+        details: repoInfo.owner + "/" + repoInfo.repo + "@" + repoInfo.branch
+      });
+      throw readError;
     }
 
     var payload = await response.json();
@@ -423,6 +451,13 @@
       etag: etag,
       sha: payload.sha || null,
       data: normalized
+    });
+    logDiagnostic({
+      source: "github-sync",
+      kind: "read",
+      status: "success",
+      message: "Leitura do GitHub concluida.",
+      details: repoInfo.owner + "/" + repoInfo.repo + "@" + repoInfo.branch
     });
 
     return {
@@ -462,8 +497,24 @@
     });
 
     if (!response.ok) {
-      throw buildWriteError(response.status, await safeJson(response), response.headers);
+      var writeError = buildWriteError(response.status, await safeJson(response), response.headers);
+      logDiagnostic({
+        source: "github-sync",
+        kind: "write",
+        status: "error",
+        message: writeError.message,
+        details: repoInfo.owner + "/" + repoInfo.repo + "@" + repoInfo.branch
+      });
+      throw writeError;
     }
+
+    logDiagnostic({
+      source: "github-sync",
+      kind: "write",
+      status: "success",
+      message: mensagemCommit || "Atualizacao enviada ao GitHub.",
+      details: repoInfo.owner + "/" + repoInfo.repo + "@" + repoInfo.branch
+    });
 
     return response.json();
   }
@@ -481,6 +532,14 @@
         if (!shouldRetryWrite(error) || attempt >= maxAttempts) {
           throw error;
         }
+
+        logDiagnostic({
+          source: "github-sync",
+          kind: "write",
+          status: "retry",
+          message: "Nova tentativa de gravacao apos erro temporario.",
+          details: "Tentativa " + (attempt + 1) + " de " + maxAttempts + ": " + (error.message || error.code || "erro sem detalhe")
+        });
 
         if (error.status === 409 || error.status === 422) {
           var latest = await lerReceitas();

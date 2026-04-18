@@ -10,7 +10,8 @@
   }
 
   function useSimpleTransition() {
-    return window.NRUtils.shouldReduceMotion();
+    return window.NRUtils.shouldReduceMotion()
+      || (typeof window.matchMedia === "function" && window.matchMedia("(max-width: 720px)").matches);
   }
 
   function getTransitionDuration() {
@@ -198,10 +199,30 @@
     var input = document.getElementById("busca-receitas");
     var dropdown = document.getElementById("busca-resultados");
     var shell = document.getElementById("busca-shell");
+    var toggleButton = document.getElementById("toggle-search-book");
 
     if (!input || !dropdown || !shell || !window.NRBusca) {
       return;
     }
+
+    var isCompactSearchMode = function () {
+      return typeof window.matchMedia === "function" && window.matchMedia("(max-width: 720px)").matches;
+    };
+
+    var setSearchOpen = function (shouldOpen) {
+      var isOpen = shouldOpen || !isCompactSearchMode();
+
+      shell.classList.toggle("is-open", isOpen);
+
+      if (toggleButton) {
+        toggleButton.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        toggleButton.setAttribute("aria-label", isOpen ? "Fechar a busca de receitas" : "Abrir a busca de receitas");
+      }
+
+      if (!isOpen) {
+        dropdown.hidden = true;
+      }
+    };
 
     var renderResults = async function (query) {
       var trimmedQuery = String(query || "").trim();
@@ -246,17 +267,53 @@
       renderResults(event.target.value);
     }, 300));
 
-    input.addEventListener("keydown", function (event) {
-      if (event.key === "Escape") {
-        dropdown.hidden = true;
+    input.addEventListener("focus", function () {
+      if (isCompactSearchMode()) {
+        setSearchOpen(true);
       }
     });
 
-    document.addEventListener("click", function (event) {
-      if (!shell.contains(event.target)) {
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
         dropdown.hidden = true;
+
+        if (isCompactSearchMode()) {
+          setSearchOpen(false);
+          toggleButton && toggleButton.focus();
+        }
       }
     });
+
+    if (toggleButton) {
+      toggleButton.addEventListener("click", function (event) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        var shouldOpen = !shell.classList.contains("is-open");
+
+        setSearchOpen(shouldOpen);
+
+        if (shouldOpen) {
+          input.focus();
+        }
+      });
+    }
+
+    document.addEventListener("click", function (event) {
+      if (!shell.contains(event.target) && !(toggleButton && toggleButton.contains(event.target))) {
+        dropdown.hidden = true;
+
+        if (isCompactSearchMode()) {
+          setSearchOpen(false);
+        }
+      }
+    });
+
+    window.addEventListener("resize", function () {
+      setSearchOpen(!isCompactSearchMode());
+    });
+
+    setSearchOpen(!isCompactSearchMode());
   }
 
   async function initBookShell() {

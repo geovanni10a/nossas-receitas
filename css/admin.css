@@ -123,6 +123,10 @@
   margin-top: var(--espaco-lg);
 }
 
+.diagnostico-admin {
+  margin-top: var(--espaco-lg);
+}
+
 .barra-espaco {
   width: 100%;
   height: 14px;
@@ -168,6 +172,37 @@
 .espaco-lista {
   display: grid;
   gap: var(--espaco-sm);
+}
+
+.diagnostico-lista {
+  display: grid;
+  gap: var(--espaco-sm);
+}
+
+.diagnostico-item {
+  display: grid;
+  gap: var(--espaco-xs);
+  padding: var(--espaco-md);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  background-color: var(--cor-luz-18);
+}
+
+.diagnostico-item strong {
+  color: var(--cor-titulo);
+  font-family: var(--fonte-ui);
+  font-size: var(--texto-sm);
+}
+
+.diagnostico-item p,
+.diagnostico-item small {
+  margin: 0;
+}
+
+.diagnostico-item small {
+  color: var(--cor-acento);
+  font-family: var(--fonte-ui);
+  font-size: var(--texto-xs);
 }
 
 .espaco-item {
