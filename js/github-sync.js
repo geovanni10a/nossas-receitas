@@ -5,6 +5,7 @@
   var FILE_PATH = "data/receitas.json";
   var TOKEN_KEY = "nr_github_token";
   var REPO_OVERRIDE_KEY = "nr_repo_override";
+  var CACHE_KEY_PREFIX = "nr_github_cache:";
 
   function categoriasIniciais() {
     return [
@@ -121,6 +122,11 @@
     return "https://api.github.com/repos/" + repoInfo.owner + "/" + repoInfo.repo + "/contents/" + repoInfo.filePath;
   }
 
+  function getCacheStorageKey(repoInfo) {
+    var target = repoInfo || getRepoInfo();
+    return CACHE_KEY_PREFIX + [target.owner, target.repo, target.branch, target.filePath].join("/");
+  }
+
   function getToken() {
     return window.localStorage.getItem(TOKEN_KEY) || "";
   }
@@ -155,6 +161,44 @@
     });
   }
 
+  function readCachedSnapshot(repoInfo) {
+    try {
+      var raw = window.localStorage.getItem(getCacheStorageKey(repoInfo));
+
+      if (!raw) {
+        return null;
+      }
+
+      var parsed = JSON.parse(raw);
+
+      if (!parsed || !parsed.data) {
+        return null;
+      }
+
+      return {
+        etag: String(parsed.etag || ""),
+        sha: parsed.sha || null,
+        savedAt: String(parsed.savedAt || ""),
+        data: normalizeData(parsed.data)
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeCachedSnapshot(repoInfo, snapshot) {
+    try {
+      window.localStorage.setItem(getCacheStorageKey(repoInfo), JSON.stringify({
+        etag: String(snapshot && snapshot.etag || ""),
+        sha: snapshot && snapshot.sha ? String(snapshot.sha) : null,
+        savedAt: new Date().toISOString(),
+        data: normalizeData(snapshot && snapshot.data)
+      }));
+    } catch (error) {
+      // Ignora falhas de cache para nao interromper a leitura principal.
+    }
+  }
+
   function utf8ToBase64(text) {
     var bytes = new TextEncoder().encode(text);
     var chunkSize = 32768;
@@ -182,22 +226,88 @@
     return new TextDecoder().decode(bytes);
   }
 
-  function createError(message, status, code) {
+  function createError(message, status, code, details) {
     var error = new Error(message);
     error.status = status || 0;
     error.code = code || "github_error";
+
+    if (details && typeof details === "object") {
+      Object.keys(details).forEach(function (key) {
+        error[key] = details[key];
+      });
+    }
+
     return error;
   }
 
-  function buildReadError(status, payload) {
+  function getRateLimitResetMs(headers, nowMs) {
+    var retryAfter = Number(headers && headers.get && headers.get("Retry-After") || 0);
+    var resetAt = Number(headers && headers.get && headers.get("X-RateLimit-Reset") || 0);
+    var currentTime = typeof nowMs === "number" ? nowMs : Date.now();
+
+    if (retryAfter > 0) {
+      return retryAfter * 1000;
+    }
+
+    if (resetAt > 0) {
+      return Math.max(0, (resetAt * 1000) - currentTime);
+    }
+
+    return 0;
+  }
+
+  function formatRetryDelay(ms) {
+    var safeMs = Math.max(0, Number(ms || 0));
+
+    if (!safeMs) {
+      return "alguns instantes";
+    }
+
+    if (safeMs < 60000) {
+      return Math.max(1, Math.ceil(safeMs / 1000)) + "s";
+    }
+
+    if (safeMs < 3600000) {
+      return Math.max(1, Math.ceil(safeMs / 60000)) + " min";
+    }
+
+    return Math.max(1, Math.ceil(safeMs / 3600000)) + " h";
+  }
+
+  function isRateLimitResponse(status, payload) {
+    var message = payload && payload.message ? String(payload.message).toLowerCase() : "";
+    return status === 429 || (status === 403 && message.indexOf("rate limit") !== -1);
+  }
+
+  function buildRateLimitMessage(headers, fallback) {
+    var retryAfterMs = getRateLimitResetMs(headers);
+    var message = fallback || "Limite de requisicoes da API atingido.";
+
+    if (retryAfterMs > 0) {
+      message += " Tente novamente em cerca de " + formatRetryDelay(retryAfterMs) + ".";
+    }
+
+    return {
+      message: message,
+      retryAfterMs: retryAfterMs
+    };
+  }
+
+  function buildReadError(status, payload, headers) {
     var message = payload && payload.message ? payload.message : "";
 
     if (status === 401) {
       return createError("Token invalido ou expirado. Gere outro token e tente novamente.", status, "invalid_token");
     }
 
-    if (status === 403 && message.toLowerCase().indexOf("rate limit") !== -1) {
-      return createError("Limite de requisicoes da API atingido. Aguarde alguns minutos ou configure um token GitHub no painel admin.", status, "rate_limit");
+    if (isRateLimitResponse(status, payload)) {
+      var rateLimit = buildRateLimitMessage(headers, "Limite de requisicoes da API atingido.");
+      return createError(
+        rateLimit.message + " Configure um token GitHub no painel admin para ganhar mais folga.",
+        status,
+        "rate_limit",
+        { retryAfterMs: rateLimit.retryAfterMs }
+      );
     }
 
     if (status === 403) {
@@ -211,15 +321,18 @@
     return createError("Erro ao ler receitas do GitHub: " + status + " - " + (message || "falha desconhecida"), status, "read_failed");
   }
 
-  function buildWriteError(status, payload) {
+  function buildWriteError(status, payload, headers) {
     var message = payload && payload.message ? payload.message : "";
 
     if (status === 401) {
       return createError("Token invalido ou expirado. Gere outro token e tente novamente.", status, "invalid_token");
     }
 
-    if (status === 403 && message.toLowerCase().indexOf("rate limit") !== -1) {
-      return createError("Limite de requisicoes da API atingido. Aguarde alguns minutos ou tente novamente mais tarde.", status, "rate_limit");
+    if (isRateLimitResponse(status, payload)) {
+      var rateLimit = buildRateLimitMessage(headers, "Limite de requisicoes da API atingido.");
+      return createError(rateLimit.message, status, "rate_limit", {
+        retryAfterMs: rateLimit.retryAfterMs
+      });
     }
 
     if (status === 403) {
@@ -233,29 +346,91 @@
     return createError("Erro ao salvar no GitHub: " + status + " - " + (message || "falha desconhecida"), status, "write_failed");
   }
 
+  function wait(delayMs) {
+    return new Promise(function (resolve) {
+      window.setTimeout(resolve, Math.max(0, Number(delayMs || 0)));
+    });
+  }
+
+  function shouldRetryWrite(error) {
+    var status = Number(error && error.status || 0);
+    var code = String(error && error.code || "");
+
+    return status === 409
+      || status === 422
+      || code === "rate_limit"
+      || status === 429
+      || status === 500
+      || status === 502
+      || status === 503
+      || status === 504;
+  }
+
+  function getRetryDelay(attemptNumber, error, randomFn) {
+    var jitterSource = typeof randomFn === "function" ? randomFn : Math.random;
+    var baseDelay = 100 * Math.pow(2, Math.max(0, Number(attemptNumber || 1) - 1));
+    var jitter = Math.round(jitterSource() * 100);
+    var retryAfterMs = Math.max(0, Number(error && error.retryAfterMs || 0));
+
+    return Math.max(baseDelay + jitter, retryAfterMs);
+  }
+
   async function lerReceitas() {
     var repoInfo = getRepoInfo();
     var url = getApiUrl() + "?ref=" + encodeURIComponent(repoInfo.branch) + "&t=" + Date.now();
+    var cachedSnapshot = readCachedSnapshot(repoInfo);
+    var headers = buildHeaders(true);
+
+    if (cachedSnapshot && cachedSnapshot.etag) {
+      headers["If-None-Match"] = cachedSnapshot.etag;
+    }
+
     var response = await window.fetch(url, {
-      headers: buildHeaders(true)
+      headers: headers
     });
+
+    if (response.status === 304 && cachedSnapshot) {
+      return {
+        data: normalizeData(cachedSnapshot.data),
+        sha: cachedSnapshot.sha || null,
+        repoInfo: repoInfo,
+        etag: cachedSnapshot.etag || "",
+        fromCache: true
+      };
+    }
+
+    if (response.status === 304) {
+      response = await window.fetch(url, {
+        headers: buildHeaders(true)
+      });
+    }
 
     if (response.status === 404) {
       return { data: dadosIniciais(), sha: null, repoInfo: repoInfo };
     }
 
     if (!response.ok) {
-      throw buildReadError(response.status, await safeJson(response));
+      throw buildReadError(response.status, await safeJson(response), response.headers);
     }
 
     var payload = await response.json();
     var encodedContent = String(payload.content || "").replace(/\n/g, "");
     var parsed = encodedContent ? JSON.parse(base64ToUtf8(encodedContent)) : dadosIniciais();
+    var normalized = normalizeData(parsed);
+    var etag = response.headers && response.headers.get ? String(response.headers.get("ETag") || "") : "";
+
+    writeCachedSnapshot(repoInfo, {
+      etag: etag,
+      sha: payload.sha || null,
+      data: normalized
+    });
 
     return {
-      data: normalizeData(parsed),
+      data: normalized,
       sha: payload.sha || null,
-      repoInfo: repoInfo
+      repoInfo: repoInfo,
+      etag: etag,
+      fromCache: false
     };
   }
 
@@ -287,32 +462,37 @@
     });
 
     if (!response.ok) {
-      throw buildWriteError(response.status, await safeJson(response));
+      throw buildWriteError(response.status, await safeJson(response), response.headers);
     }
 
     return response.json();
   }
 
   async function salvarComRetry(data, sha, mensagemCommit, rebuildData, tentativas) {
-    var retriesLeft = typeof tentativas === "number" ? tentativas : 2;
+    var maxAttempts = Math.max(1, typeof tentativas === "number" ? tentativas : 3);
     var currentData = normalizeData(data);
     var currentSha = sha || null;
+    var attempt = 1;
 
-    try {
-      return await salvarReceitas(currentData, currentSha, mensagemCommit);
-    } catch (error) {
-      var isConflict = error.status === 409 || error.status === 422;
+    while (attempt <= maxAttempts) {
+      try {
+        return await salvarReceitas(currentData, currentSha, mensagemCommit);
+      } catch (error) {
+        if (!shouldRetryWrite(error) || attempt >= maxAttempts) {
+          throw error;
+        }
 
-      if (!isConflict || retriesLeft <= 0) {
-        throw error;
+        if (error.status === 409 || error.status === 422) {
+          var latest = await lerReceitas();
+          currentData = typeof rebuildData === "function"
+            ? normalizeData(await rebuildData(cloneData(latest.data)))
+            : currentData;
+          currentSha = latest.sha || null;
+        }
+
+        await wait(getRetryDelay(attempt, error));
+        attempt += 1;
       }
-
-      var latest = await lerReceitas();
-      var mergedData = typeof rebuildData === "function"
-        ? normalizeData(await rebuildData(cloneData(latest.data)))
-        : currentData;
-
-      return salvarComRetry(mergedData, latest.sha, mensagemCommit, rebuildData, retriesLeft - 1);
     }
   }
 
@@ -329,6 +509,20 @@
     getRepoOverride: getRepoOverride,
     setRepoOverride: setRepoOverride,
     clearRepoOverride: clearRepoOverride,
-    inferRepoInfo: inferRepoInfo
+    inferRepoInfo: inferRepoInfo,
+    __private: {
+      normalizeData: normalizeData,
+      sanitizeRepoPart: sanitizeRepoPart,
+      createError: createError,
+      buildReadError: buildReadError,
+      buildWriteError: buildWriteError,
+      getCacheStorageKey: getCacheStorageKey,
+      readCachedSnapshot: readCachedSnapshot,
+      writeCachedSnapshot: writeCachedSnapshot,
+      getRateLimitResetMs: getRateLimitResetMs,
+      formatRetryDelay: formatRetryDelay,
+      shouldRetryWrite: shouldRetryWrite,
+      getRetryDelay: getRetryDelay
+    }
   };
 })();

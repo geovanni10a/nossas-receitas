@@ -539,6 +539,15 @@
     initDefaultData: initDefaultData,
     slugify: slugify,
     clearLocalData: clearLocalData,
-    estimateRecipeSize: estimateRecipeSize
+    estimateRecipeSize: estimateRecipeSize,
+    __private: {
+      normalizeData: normalizeData,
+      compareDates: compareDates,
+      mergeRecipes: mergeRecipes,
+      mergeCategories: mergeCategories,
+      mergeData: mergeData,
+      normalizeRecipe: normalizeRecipe,
+      validateRepositorySize: validateRepositorySize
+    }
   };
 })();

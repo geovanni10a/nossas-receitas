@@ -4,7 +4,11 @@
   "description": "Site estatico em HTML, CSS e JavaScript puro com visual de livro de receitas antigo e sincronizacao opcional via GitHub Contents API.",
   "main": "index.js",
   "scripts": {
-    "test": "playwright test",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:unit:coverage": "vitest run --coverage",
+    "test:unit:watch": "vitest",
+    "test:e2e": "playwright test",
     "test:headed": "playwright test --headed"
   },
   "repository": {
@@ -20,6 +24,9 @@
   },
   "homepage": "https://github.com/geovanni10a/nossas-receitas#readme",
   "devDependencies": {
-    "@playwright/test": "^1.59.1"
+    "@playwright/test": "^1.59.1",
+    "@vitest/coverage-v8": "^4.1.4",
+    "jsdom": "^29.0.2",
+    "vitest": "^4.1.4"
   }
 }
