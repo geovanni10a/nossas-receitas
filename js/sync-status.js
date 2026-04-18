@@ -81,8 +81,7 @@
       wrapper.appendChild(refresh);
     }
 
-    container.innerHTML = "";
-    container.appendChild(wrapper);
+    container.replaceChildren(wrapper);
   }
 
   function mount(container, options) {

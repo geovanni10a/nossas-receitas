@@ -1,4 +1,5 @@
 (function () {
+  var h = window.NRDom && window.NRDom.h;
   var state = {
     recipeId: null,
     tags: [],
@@ -260,13 +261,16 @@
     }
 
     summary.hidden = false;
-    summary.innerHTML = [
-      "<strong>Conexao validada</strong>",
-      "<span>Owner: " + window.NRUtils.escapeHtml(info.owner) + "</span><br>",
-      "<span>Repositorio: " + window.NRUtils.escapeHtml(info.repo) + "</span><br>",
-      "<span>Branch: " + window.NRUtils.escapeHtml(info.branch) + "</span><br>",
-      "<span>Total de receitas lidas: " + window.NRUtils.escapeHtml(info.totalReceitas) + "</span>"
-    ].join("");
+    summary.replaceChildren(
+      h("strong", null, "Conexao validada"),
+      h("span", null, "Owner: " + info.owner),
+      h("br"),
+      h("span", null, "Repositorio: " + info.repo),
+      h("br"),
+      h("span", null, "Branch: " + info.branch),
+      h("br"),
+      h("span", null, "Total de receitas lidas: " + info.totalReceitas)
+    );
   }
 
   function applyRepoFields(repoInfo) {
@@ -345,7 +349,7 @@
       categories = window.GitHubSync.getCategoriasIniciais();
     }
 
-    select.innerHTML = "";
+    select.replaceChildren();
 
     categories.forEach(function (category) {
       select.appendChild(createOption(category.id, category.nome));
@@ -387,7 +391,7 @@
   function renderTags() {
     var container = byId("tags-lista");
 
-    container.innerHTML = "";
+    container.replaceChildren();
 
     state.tags.forEach(function (tag, index) {
       var chip = document.createElement("span");
@@ -742,8 +746,8 @@
     setPreview(state.photoData || "assets/sem-foto.svg");
     renderTags();
 
-    byId("ingredientes-lista").innerHTML = "";
-    byId("passos-lista").innerHTML = "";
+    byId("ingredientes-lista").replaceChildren();
+    byId("passos-lista").replaceChildren();
 
     if (data.ingredientes.length) {
       data.ingredientes.forEach(function (item) {
@@ -854,7 +858,7 @@
       alert.textContent = "Espaco saudavel. Ainda ha folga para novas receitas.";
     }
 
-    list.innerHTML = "";
+    list.replaceChildren();
 
     report.recipes.slice(0, 5).forEach(function (recipe) {
       var item = document.createElement("div");
@@ -902,21 +906,29 @@
       return;
     }
 
-    shell.innerHTML = "";
+    shell.replaceChildren();
 
     if (!missing.length) {
       return;
     }
 
-    message = document.createElement("div");
-    message.className = "thumb-migracao";
-    message.innerHTML = [
-      "<strong>Miniaturas antigas pendentes</strong>",
-      "<p>" + missing.length + (missing.length === 1
-        ? " receita ainda nao tem miniatura otimizada."
-        : " receitas ainda nao tem miniaturas otimizadas.") + "</p>",
-      "<p>Gere essas miniaturas uma vez para deixar as listas mais leves e manter os registros antigos no novo formato.</p>"
-    ].join("");
+    message = h(
+      "div",
+      { className: "thumb-migracao" },
+      h("strong", null, "Miniaturas antigas pendentes"),
+      h(
+        "p",
+        null,
+        missing.length + (missing.length === 1
+          ? " receita ainda nao tem miniatura otimizada."
+          : " receitas ainda nao tem miniaturas otimizadas.")
+      ),
+      h(
+        "p",
+        null,
+        "Gere essas miniaturas uma vez para deixar as listas mais leves e manter os registros antigos no novo formato."
+      )
+    );
 
     button = document.createElement("button");
     button.className = "botao-secundario";
@@ -982,10 +994,17 @@
       return;
     }
 
-    list.innerHTML = "";
+    list.replaceChildren();
 
     if (!entries.length) {
-      list.innerHTML = '<div class="diagnostico-item"><strong>Ainda nao ha eventos registrados.</strong><p>As proximas leituras, gravacoes e erros de sincronizacao aparecerao aqui.</p></div>';
+      list.replaceChildren(
+        h(
+          "div",
+          { className: "diagnostico-item" },
+          h("strong", null, "Ainda nao ha eventos registrados."),
+          h("p", null, "As proximas leituras, gravacoes e erros de sincronizacao aparecerao aqui.")
+        )
+      );
       return;
     }
 
@@ -1187,7 +1206,7 @@
     window.GitHubSync.clearToken();
     refreshTokenUI("Token removido. O painel voltou ao modo local.", "aviso");
     renderWizardSummary(null);
-    byId("container-migracao").innerHTML = "";
+    byId("container-migracao").replaceChildren();
     await renderSpaceUsage();
     await renderThumbnailMigration();
   }

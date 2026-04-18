@@ -2,6 +2,7 @@
   var LOCAL_RECIPE_KEY = "nr_recipes";
   var LOCAL_CATEGORY_KEY = "nr_categories";
   var LOCAL_INITIALIZED_KEY = "nr_initialized";
+  var h = window.NRDom && window.NRDom.h;
 
   function safeParse(key, fallback) {
     try {
@@ -116,26 +117,79 @@
   }
 
   function construirBanner(receitasLocais) {
-    var banner = document.createElement("div");
-    banner.className = "banner-migracao";
-    banner.setAttribute("role", "alert");
-    banner.innerHTML = [
-      '<div class="banner-migracao__icone">📚</div>',
-      '<div class="banner-migracao__texto">',
-      '  <strong>Receitas encontradas neste navegador!</strong>',
-      '  <p>Encontrei <strong>' + receitasLocais.length + ' receita(s)</strong> salvas localmente. Deseja envia-las para o GitHub agora para ficarem disponiveis em todos os dispositivos?</p>',
-      '</div>',
-      '<div class="banner-migracao__acoes">',
-      '  <button class="botao-primario" type="button" id="btn-confirmar-migracao">Sim, sincronizar agora</button>',
-      '  <button class="botao-secundario" type="button" id="btn-ignorar-migracao">Ignorar por enquanto</button>',
-      '</div>',
-      '<div id="progresso-migracao" class="migracao-progresso" hidden>',
-      '  <span class="spinner" aria-hidden="true"></span>',
-      '  <span id="texto-progresso">Iniciando...</span>',
-      '</div>'
-    ].join("");
+    return h(
+      "div",
+      {
+        className: "banner-migracao",
+        role: "alert"
+      },
+      h("div", { className: "banner-migracao__icone" }, "📚"),
+      h(
+        "div",
+        { className: "banner-migracao__texto" },
+        h("strong", null, "Receitas encontradas neste navegador!"),
+        h(
+          "p",
+          null,
+          "Encontrei ",
+          h("strong", null, receitasLocais.length + " receita(s)"),
+          " salvas localmente. Deseja envia-las para o GitHub agora para ficarem disponiveis em todos os dispositivos?"
+        )
+      ),
+      h(
+        "div",
+        { className: "banner-migracao__acoes" },
+        h(
+          "button",
+          {
+            className: "botao-primario",
+            type: "button",
+            id: "btn-confirmar-migracao"
+          },
+          "Sim, sincronizar agora"
+        ),
+        h(
+          "button",
+          {
+            className: "botao-secundario",
+            type: "button",
+            id: "btn-ignorar-migracao"
+          },
+          "Ignorar por enquanto"
+        )
+      ),
+      h(
+        "div",
+        {
+          id: "progresso-migracao",
+          className: "migracao-progresso",
+          hidden: true
+        },
+        h("span", { className: "spinner", "aria-hidden": "true" }),
+        h("span", { id: "texto-progresso" }, "Iniciando...")
+      )
+    );
+  }
 
-    return banner;
+  function construirBannerSucesso(resultado) {
+    return h(
+      "div",
+      {
+        className: "banner-migracao banner-migracao--sucesso",
+        role: "status"
+      },
+      h("span", { className: "banner-migracao__icone" }, "✓"),
+      h(
+        "div",
+        { className: "banner-migracao__texto" },
+        h("strong", null, "Migracao concluida!"),
+        h(
+          "p",
+          null,
+          resultado.total + " receita(s) agora estao no GitHub. A pagina vai recarregar em 3 segundos."
+        )
+      )
+    );
   }
 
   function verificarEMigrar(containerUI) {
@@ -145,7 +199,7 @@
       return;
     }
 
-    containerUI.innerHTML = "";
+    containerUI.replaceChildren();
 
     var banner = construirBanner(receitasLocais);
     containerUI.prepend(banner);
@@ -165,15 +219,7 @@
           textoProgresso.textContent = mensagem;
         });
 
-        banner.innerHTML = [
-          '<div class="banner-migracao banner-migracao--sucesso" role="status">',
-          '  <span class="banner-migracao__icone">✓</span>',
-          '  <div class="banner-migracao__texto">',
-          '    <strong>Migracao concluida!</strong>',
-          '    <p>' + resultado.total + ' receita(s) agora estao no GitHub. A pagina vai recarregar em 3 segundos.</p>',
-          '  </div>',
-          '</div>'
-        ].join("");
+        banner.replaceWith(construirBannerSucesso(resultado));
 
         window.setTimeout(function () {
           window.location.reload();
@@ -182,6 +228,12 @@
         progresso.hidden = true;
         btnConfirmar.disabled = false;
         btnIgnorar.disabled = false;
+
+        var erroExistente = banner.querySelector(".migracao-erro");
+
+        if (erroExistente) {
+          erroExistente.remove();
+        }
 
         var erro = document.createElement("p");
         erro.className = "migracao-erro";

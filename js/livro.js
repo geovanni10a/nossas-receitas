@@ -1,13 +1,11 @@
 (function () {
+  var h = window.NRDom && window.NRDom.h;
+  var fragment = window.NRDom && window.NRDom.fragment;
   var state = {
     currentHTML: "",
     renderToken: 0,
     searchToken: 0
   };
-
-  function escapeHtml(value) {
-    return window.NRUtils.escapeHtml(value);
-  }
 
   function useSimpleTransition() {
     return window.NRUtils.shouldReduceMotion()
@@ -46,7 +44,7 @@
     }
 
     await window.NRStorage.initDefaultData();
-    preview.innerHTML = await window.NRCategorias.previewMarkup();
+    preview.replaceChildren(await window.NRCategorias.previewMarkup());
     mountSharedControls("sync-status-home", "toggle-motion-home", "toggle-theme-home", true);
 
     cover.addEventListener("click", function () {
@@ -93,7 +91,7 @@
     }
 
     if (typeof content === "string") {
-      container.innerHTML = content;
+      container.replaceChildren(document.createTextNode(content));
       return;
     }
 
@@ -209,6 +207,33 @@
       return typeof window.matchMedia === "function" && window.matchMedia("(max-width: 720px)").matches;
     };
 
+    var setDropdownContent = function (content) {
+      if (!content) {
+        dropdown.replaceChildren();
+        return;
+      }
+
+      dropdown.replaceChildren(content);
+    };
+
+    var buildSearchMessage = function (message) {
+      return h("div", { className: "resultado-vazio" }, message);
+    };
+
+    var buildSearchResults = function (results) {
+      return fragment(results.map(function (item) {
+        return h(
+          "a",
+          {
+            className: "resultado-busca",
+            href: "livro.html?receita=" + encodeURIComponent(item.id)
+          },
+          h("strong", null, item.titulo),
+          h("span", null, item.categoria)
+        );
+      }));
+    };
+
     var setSearchOpen = function (shouldOpen) {
       var isOpen = shouldOpen || !isCompactSearchMode();
 
@@ -232,12 +257,12 @@
 
       if (trimmedQuery.length < 2) {
         dropdown.hidden = true;
-        dropdown.innerHTML = "";
+        setDropdownContent(null);
         return;
       }
 
       dropdown.hidden = false;
-      dropdown.innerHTML = '<div class="resultado-vazio">Buscando receitas...</div>';
+      setDropdownContent(buildSearchMessage("Buscando receitas..."));
 
       try {
         var results = await window.NRBusca.search(trimmedQuery);
@@ -247,19 +272,17 @@
         }
 
         if (!results.length) {
-          dropdown.innerHTML = '<div class="resultado-vazio">Nenhuma receita encontrada para "' + escapeHtml(trimmedQuery) + '".</div>';
+          setDropdownContent(buildSearchMessage('Nenhuma receita encontrada para "' + trimmedQuery + '".'));
           return;
         }
 
-        dropdown.innerHTML = results.map(function (item) {
-          return '<a class="resultado-busca" href="livro.html?receita=' + escapeHtml(item.id) + '"><strong>' + escapeHtml(item.titulo) + "</strong><span>" + escapeHtml(item.categoria) + "</span></a>";
-        }).join("");
+        setDropdownContent(buildSearchResults(results));
       } catch (error) {
         if (currentSearchToken !== state.searchToken) {
           return;
         }
 
-        dropdown.innerHTML = '<div class="resultado-vazio">Nao foi possivel buscar agora. Tente novamente.</div>';
+        setDropdownContent(buildSearchMessage("Nao foi possivel buscar agora. Tente novamente."));
       }
     };
 

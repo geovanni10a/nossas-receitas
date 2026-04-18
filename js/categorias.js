@@ -1,37 +1,61 @@
 (function () {
   var PLACEHOLDER = "assets/sem-foto.svg";
-
-  function escapeHtml(value) {
-    return window.NRUtils.escapeHtml(value);
-  }
+  var h = window.NRDom.h;
+  var fragment = window.NRDom.fragment;
 
   function recipeCard(recipe) {
     var image = window.NRUtils.safeImageSource(recipe.fotoThumb || recipe.foto, PLACEHOLDER);
 
-    return [
-      '<a class="item-lista" href="livro.html?receita=' + escapeHtml(recipe.id) + '&categoria=' + escapeHtml(recipe.categoriaId) + '">',
-      '  <div class="thumb-receita"><img loading="lazy" src="' + escapeHtml(image) + '" alt="Foto da receita ' + escapeHtml(recipe.titulo) + '"></div>',
-      '  <div>',
-      '    <h3>' + escapeHtml(recipe.titulo) + '</h3>',
-      '    <p>' + (recipe.dica ? escapeHtml(recipe.dica) : "Uma receita guardada no seu livro pessoal.") + '</p>',
-      '    <div class="meta-receita">',
-      '      <span class="meta-chip">' + escapeHtml(recipe.tempoPreparo || "Tempo livre") + '</span>',
-      '      <span class="meta-chip">' + escapeHtml(recipe.dificuldade || "Facil") + '</span>',
-      '    </div>',
-      '  </div>',
-      '  <span class="meta-chip">Abrir</span>',
-      '</a>'
-    ].join("");
+    return h(
+      "a",
+      {
+        className: "item-lista",
+        href: "livro.html?receita=" + encodeURIComponent(recipe.id) + "&categoria=" + encodeURIComponent(recipe.categoriaId)
+      },
+      h(
+        "div",
+        { className: "thumb-receita" },
+        h("img", {
+          loading: "lazy",
+          src: image,
+          alt: "Foto da receita " + recipe.titulo
+        })
+      ),
+      h(
+        "div",
+        null,
+        h("h3", null, recipe.titulo),
+        h("p", null, recipe.dica || "Uma receita guardada no seu livro pessoal."),
+        h(
+          "div",
+          { className: "meta-receita" },
+          h("span", { className: "meta-chip" }, recipe.tempoPreparo || "Tempo livre"),
+          h("span", { className: "meta-chip" }, recipe.dificuldade || "Facil")
+        )
+      ),
+      h("span", { className: "meta-chip" }, "Abrir")
+    );
   }
 
   function renderEmptyState(title, description, linkLabel, linkHref) {
-    return [
-      '<section class="estado-vazio">',
-      '  <h2>' + escapeHtml(title) + '</h2>',
-      '  <p>' + escapeHtml(description) + '</p>',
-      '  <p><a class="botao-secundario" href="' + escapeHtml(linkHref || "livro.html") + '">' + escapeHtml(linkLabel || "Voltar ao indice") + '</a></p>',
-      '</section>'
-    ].join("");
+    return h(
+      "section",
+      { className: "estado-vazio" },
+      h("h2", null, title),
+      h("p", null, description),
+      h(
+        "p",
+        null,
+        h(
+          "a",
+          {
+            className: "botao-secundario",
+            href: linkHref || "livro.html"
+          },
+          linkLabel || "Voltar ao indice"
+        )
+      )
+    );
   }
 
   async function renderCategoriesView() {
@@ -49,34 +73,47 @@
       );
     }
 
-    return [
-      '<section class="categorias-view">',
-      '  <header class="cabecalho-view">',
-      '    <div>',
-      '      <p class="sobretitulo">Indice da cozinha</p>',
-      '      <h1>Escolha uma categoria</h1>',
-      '      <p>Passeie pelas paginas, busque por um ingrediente favorito e mantenha tudo sincronizado pelo GitHub.</p>',
-      '    </div>',
-      '    <a class="botao-secundario" href="admin.html">Adicionar uma nova receita</a>',
-      '  </header>',
-      '  <div class="categorias-grid">',
-      categories.map(function (category) {
-        return [
-          '<a class="categoria-card" href="livro.html?categoria=' + escapeHtml(category.id) + '">',
-          '  <div class="categoria-card-topo">',
-          '    <span class="categoria-icone">' + escapeHtml(category.icone) + '</span>',
-          '    <small>' + category.totalReceitas + (category.totalReceitas === 1 ? " receita" : " receitas") + '</small>',
-          '  </div>',
-          '  <div>',
-          '    <h3>' + escapeHtml(category.nome) + '</h3>',
-          '    <p>Abra esta secao e veja suas receitas em paginas delicadas e faceis de consultar.</p>',
-          '  </div>',
-          '</a>'
-        ].join("");
-      }).join(""),
-      '  </div>',
-      '</section>'
-    ].join("");
+    return h(
+      "section",
+      { className: "categorias-view" },
+      h(
+        "header",
+        { className: "cabecalho-view" },
+        h(
+          "div",
+          null,
+          h("p", { className: "sobretitulo" }, "Indice da cozinha"),
+          h("h1", null, "Escolha uma categoria"),
+          h("p", null, "Passeie pelas paginas, busque por um ingrediente favorito e mantenha tudo sincronizado pelo GitHub.")
+        ),
+        h("a", { className: "botao-secundario", href: "admin.html" }, "Adicionar uma nova receita")
+      ),
+      h(
+        "div",
+        { className: "categorias-grid" },
+        categories.map(function (category) {
+          return h(
+            "a",
+            {
+              className: "categoria-card",
+              href: "livro.html?categoria=" + encodeURIComponent(category.id)
+            },
+            h(
+              "div",
+              { className: "categoria-card-topo" },
+              h("span", { className: "categoria-icone" }, category.icone),
+              h("small", null, category.totalReceitas + (category.totalReceitas === 1 ? " receita" : " receitas"))
+            ),
+            h(
+              "div",
+              null,
+              h("h3", null, category.nome),
+              h("p", null, "Abra esta secao e veja suas receitas em paginas delicadas e faceis de consultar.")
+            )
+          );
+        })
+      )
+    );
   }
 
   async function renderCategoryRecipes(categoryId) {
@@ -88,43 +125,65 @@
     }
 
     if (!recipes.length) {
-      return [
-        '<section class="estado-vazio">',
-        '  <h2>Ainda nao ha receitas aqui. Que tal adicionar uma?</h2>',
-        '  <p>Voce pode preencher esta categoria abrindo o painel administrativo.</p>',
-        '  <p><a class="botao-primario" href="admin.html">Ir para o painel</a></p>',
-        '</section>'
-      ].join("");
+      return h(
+        "section",
+        { className: "estado-vazio" },
+        h("h2", null, "Ainda nao ha receitas aqui. Que tal adicionar uma?"),
+        h("p", null, "Voce pode preencher esta categoria abrindo o painel administrativo."),
+        h(
+          "p",
+          null,
+          h("a", { className: "botao-primario", href: "admin.html" }, "Ir para o painel")
+        )
+      );
     }
 
-    return [
-      '<section class="lista-view">',
-      '  <div class="navegacao-livro">',
-      '    <a class="botao-secundario" href="livro.html">Voltar ao indice</a>',
-      '    <a class="botao-secundario" href="admin.html">Adicionar receita</a>',
-      '  </div>',
-      '  <header class="cabecalho-view">',
-      '    <div>',
-      '      <p class="sobretitulo">Categoria selecionada</p>',
-      '      <h2>' + escapeHtml(category.nome) + '</h2>',
-      '      <p>' + recipes.length + (recipes.length === 1 ? " receita pronta para consulta." : " receitas prontas para consulta.") + '</p>',
-      '    </div>',
-      '  </header>',
-      '  <div class="lista-scroll">',
-      '    <div class="receitas-lista">',
-      recipes.map(recipeCard).join(""),
-      '    </div>',
-      '  </div>',
-      '</section>'
-    ].join("");
+    return h(
+      "section",
+      { className: "lista-view" },
+      h(
+        "div",
+        { className: "navegacao-livro" },
+        h("a", { className: "botao-secundario", href: "livro.html" }, "Voltar ao indice"),
+        h("a", { className: "botao-secundario", href: "admin.html" }, "Adicionar receita")
+      ),
+      h(
+        "header",
+        { className: "cabecalho-view" },
+        h(
+          "div",
+          null,
+          h("p", { className: "sobretitulo" }, "Categoria selecionada"),
+          h("h2", null, category.nome),
+          h("p", null, recipes.length + (recipes.length === 1 ? " receita pronta para consulta." : " receitas prontas para consulta."))
+        )
+      ),
+      h(
+        "div",
+        { className: "lista-scroll" },
+        h(
+          "div",
+          { className: "receitas-lista" },
+          recipes.map(recipeCard)
+        )
+      )
+    );
   }
 
   async function previewMarkup() {
     var categories = await window.NRStorage.getCategories();
 
-    return categories.slice(0, 4).map(function (category) {
-      return '<div class="preview-categoria"><strong>' + escapeHtml(category.icone + " " + category.nome) + '</strong><br><small>' + category.totalReceitas + ' registradas</small></div>';
-    }).join("");
+    return fragment(
+      categories.slice(0, 4).map(function (category) {
+        return h(
+          "div",
+          { className: "preview-categoria" },
+          h("strong", null, category.icone + " " + category.nome),
+          h("br"),
+          h("small", null, category.totalReceitas + " registradas")
+        );
+      })
+    );
   }
 
   window.NRCategorias = {
