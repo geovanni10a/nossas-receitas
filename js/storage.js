@@ -102,9 +102,9 @@
 
     if (!navigator.onLine) {
       state.state = "offline";
-      state.message = state.lastSyncAt
+      state.message = state.message || (state.lastSyncAt
         ? "Sem conexao; exibindo os dados mais recentes deste dispositivo."
-        : "Sem conexao e sem sincronizacao recente.";
+        : "Sem conexao e sem sincronizacao recente.");
       return state;
     }
 
@@ -121,6 +121,22 @@
       receitas: safeParse(LOCAL_KEYS.recipes, []),
       categorias: safeParse(LOCAL_KEYS.categories, [])
     });
+  }
+
+  function getCachedRemoteData() {
+    var snapshot = window.GitHubSync && typeof window.GitHubSync.getCachedSnapshot === "function"
+      ? window.GitHubSync.getCachedSnapshot()
+      : null;
+
+    if (!snapshot || !snapshot.data) {
+      return null;
+    }
+
+    return {
+      data: normalizeData(snapshot.data),
+      sha: snapshot.sha || null,
+      savedAt: snapshot.savedAt || ""
+    };
   }
 
   function persistLocalData(data) {
@@ -235,21 +251,36 @@
           ? "Repositorio validado e dados atualizados."
           : "Leitura publica atualizada; configure um token para habilitar escrita.");
       } catch (error) {
+        var cachedRemote = getCachedRemoteData();
+        var fallbackData = cachedRemote
+          ? mergeData(localData, cachedRemote.data)
+          : localData;
+        var fallbackStatus = navigator.onLine ? (cachedRemote ? "fallback-cache" : "fallback") : (cachedRemote ? "offline-cache" : "offline");
+
         cache = {
-          data: localData,
-          sha: null,
+          data: fallbackData,
+          sha: cachedRemote ? cachedRemote.sha : null,
           error: error
         };
         logDiagnostic({
           source: "storage",
           kind: "sync",
-          status: navigator.onLine ? "fallback" : "offline",
-          message: "Falha ao sincronizar com o GitHub; exibindo dados locais.",
+          status: fallbackStatus,
+          message: cachedRemote
+            ? "Falha ao sincronizar com o GitHub; exibindo a ultima copia sincronizada deste dispositivo."
+            : "Falha ao sincronizar com o GitHub; exibindo dados locais.",
           details: error && error.message ? error.message : ""
         });
         setSyncState({
           state: navigator.onLine ? "erro" : "offline",
-          message: error && error.message ? error.message : "Nao foi possivel sincronizar com o GitHub.",
+          lastSyncAt: cachedRemote && cachedRemote.savedAt ? cachedRemote.savedAt : syncState.lastSyncAt,
+          message: navigator.onLine
+            ? (cachedRemote
+              ? "GitHub indisponivel no momento; exibindo a ultima copia sincronizada deste dispositivo."
+              : (error && error.message ? error.message : "Nao foi possivel sincronizar com o GitHub."))
+            : (cachedRemote
+              ? "Sem conexao; exibindo a ultima copia sincronizada deste dispositivo."
+              : "Sem conexao e sem copia sincronizada recente neste dispositivo."),
           source: "local"
         });
       } finally {

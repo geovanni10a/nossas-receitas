@@ -205,6 +205,10 @@
     }
   }
 
+  function getCachedSnapshot() {
+    return readCachedSnapshot(getRepoInfo());
+  }
+
   function utf8ToBase64(text) {
     var bytes = new TextEncoder().encode(text);
     var chunkSize = 32768;
@@ -569,6 +573,7 @@
     setRepoOverride: setRepoOverride,
     clearRepoOverride: clearRepoOverride,
     inferRepoInfo: inferRepoInfo,
+    getCachedSnapshot: getCachedSnapshot,
     __private: {
       normalizeData: normalizeData,
       sanitizeRepoPart: sanitizeRepoPart,

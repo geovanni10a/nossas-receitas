@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-96QVNzQRVQv14QgWojaclJir8h4z6XiENUwQGJxgW6c=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-96QVNzQRVQv14QgWojaclJir8h4z6XiENUwQGJxgW6c=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
   <title>Nossas Receitas | Livro</title>
+  <meta name="theme-color" content="#A0522D">
   <meta name="description" content="Indice, categorias e receitas do livro Nossas Receitas.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
@@ -15,6 +16,7 @@
   <meta name="twitter:title" content="Nossas Receitas | Livro">
   <meta name="twitter:description" content="Abra o livro, navegue por categorias e encontre a proxima receita da familia.">
   <meta name="twitter:image" content="assets/og.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -70,5 +72,6 @@
   <script src="js/categorias.js"></script>
   <script src="js/receita.js"></script>
   <script src="js/livro.js"></script>
+  <script src="js/pwa.js"></script>
 </body>
 </html>

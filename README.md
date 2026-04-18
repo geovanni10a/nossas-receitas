@@ -9,6 +9,7 @@ Site estatico em HTML, CSS e JavaScript puro com visual de livro de receitas ant
 - Wizard de configuracao do GitHub no admin, com validacao imediata de owner, repositorio, branch e total de receitas.
 - Deteccao automatica de `owner/repo` em GitHub Pages, com override manual para forks.
 - Preferencia de movimento com modo automatico, reduzido ou completo.
+- PWA instalavel com `manifest.webmanifest`, service worker, cache do app shell e fallback offline estilizado.
 - Painel de uso de espaco com barra de progresso, alertas em thresholds e top-5 receitas mais pesadas.
 - Botao para recomprimir a foto de receitas pesadas direto no admin.
 - Suite Playwright expandida cobrindo XSS, badge de sync, wizard e armazenamento.
@@ -20,6 +21,7 @@ Site estatico em HTML, CSS e JavaScript puro com visual de livro de receitas ant
 3. Clique em `Save`. Em cerca de 1 minuto, o site estara em: `https://SEU-USUARIO.github.io/nossas-receitas/`
 4. Para adicionar receitas: acesse `https://SEU-USUARIO.github.io/nossas-receitas/admin.html`
 5. A leitura do livro funciona sem token. Para salvar receitas no repositorio, configure um token GitHub no painel admin.
+6. Depois da primeira visita online, o livro pode ser instalado como app e continua acessivel offline neste dispositivo.
 
 ## Como funciona a sincronizacao
 
@@ -42,6 +44,7 @@ Site estatico em HTML, CSS e JavaScript puro com visual de livro de receitas ant
 - GitHub pode aplicar rate limit em leituras sem token. Se isso acontecer, configure um token ou aguarde alguns minutos.
 - Fotos muito grandes deixam `data/receitas.json` pesado. O painel recorta e compacta a imagem antes de salvar, mas ainda vale preferir fotos leves.
 - Se o arquivo JSON crescer demais, o painel bloqueia o salvamento e pede para reduzir fotos antigas.
+- O service worker guarda o shell do app e a ultima copia sincronizada deste dispositivo para manter a consulta offline apos a primeira visita.
 
 ## Estrutura
 

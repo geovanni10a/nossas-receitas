@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-96QVNzQRVQv14QgWojaclJir8h4z6XiENUwQGJxgW6c=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
+  <title>Nossas Receitas | Sem conexao</title>
+  <meta name="theme-color" content="#A0522D">
+  <meta name="description" content="Tela offline do livro Nossas Receitas.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <script>(function(){try{var key="nr_theme";var stored=window.localStorage.getItem(key);var preference=stored==="light"||stored==="dark"?stored:"auto";var media=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)");var resolved=preference==="auto"?(media&&media.matches?"dark":"light"):preference;document.documentElement.dataset.theme=resolved;document.documentElement.dataset.themePreference=preference;document.documentElement.style.colorScheme=resolved;}catch(error){}})();</script>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lato:wght@400;700&family=Lora:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/base.css">
+</head>
+<body class="pagina-offline">
+  <div class="fundo-livro"></div>
+  <main class="offline-layout">
+    <section class="offline-card pagina-textura">
+      <p class="sobretitulo">Modo offline</p>
+      <h1>O livro ficou sem conexao agora.</h1>
+      <p>Se esta for a sua primeira visita, conecte-se uma vez para guardar o livro neste dispositivo. Se voce ja abriu o site antes, volte para as paginas principais e continue consultando suas receitas normalmente.</p>
+      <div class="offline-acoes">
+        <a class="botao-primario" href="index.html">Voltar para a capa</a>
+        <a class="botao-secundario" href="livro.html">Abrir o livro</a>
+        <a class="botao-secundario" href="admin.html">Ir ao admin</a>
+      </div>
+      <ul class="offline-lista">
+        <li>O badge de sincronizacao mostra quando o livro esta offline.</li>
+        <li>Receitas carregadas antes continuam disponiveis neste aparelho.</li>
+        <li>Ao reconectar, use "Atualizar agora" para puxar o GitHub novamente.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script src="js/pwa.js"></script>
+</body>
+</html>

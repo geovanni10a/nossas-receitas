@@ -80,4 +80,33 @@ describe("NRStorage", () => {
 
     expect(() => storage.__private.validateRepositorySize(bigRecipe)).toThrow(/grande demais/);
   });
+
+  it("reaproveita o snapshot cacheado do GitHub quando a rede cai", async () => {
+    env.close();
+    env = createBrowserEnv({
+      online: false,
+      fetch: vi.fn().mockRejectedValue(new Error("offline"))
+    });
+    env.loadScripts(["js/github-sync.js", "js/storage.js"]);
+    storage = env.window.NRStorage;
+
+    const cacheKey = env.window.GitHubSync.__private.getCacheStorageKey(env.window.GitHubSync.getRepoInfo());
+
+    env.window.localStorage.setItem(cacheKey, JSON.stringify({
+      etag: "\"etag-offline\"",
+      sha: "sha-offline",
+      savedAt: "2026-04-18T11:00:00.000Z",
+      data: {
+        receitas: [{ id: "99", titulo: "Receita em cache", categoriaId: "doces" }],
+        categorias: [{ id: "doces", nome: "Doces", icone: "🍰", cor: "#C4845A" }]
+      }
+    }));
+
+    await expect(storage.getAllRecipes()).resolves.toEqual([
+      { id: "99", titulo: "Receita em cache", categoriaId: "doces" }
+    ]);
+
+    expect(storage.getSyncStatus().state).toBe("offline");
+    expect(storage.getSyncStatus().message).toContain("ultima copia sincronizada");
+  });
 });
