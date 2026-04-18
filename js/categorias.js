@@ -2,20 +2,15 @@
   var PLACEHOLDER = "assets/sem-foto.svg";
 
   function escapeHtml(value) {
-    return String(value || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
+    return window.NRUtils.escapeHtml(value);
   }
 
   function recipeCard(recipe) {
-    var image = recipe.foto || PLACEHOLDER;
+    var image = window.NRUtils.safeImageSource(recipe.fotoThumb || recipe.foto, PLACEHOLDER);
 
     return [
-      '<a class="item-lista" href="livro.html?receita=' + recipe.id + '&categoria=' + recipe.categoriaId + '">',
-      '  <div class="thumb-receita"><img src="' + image + '" alt="Foto da receita ' + escapeHtml(recipe.titulo) + '"></div>',
+      '<a class="item-lista" href="livro.html?receita=' + escapeHtml(recipe.id) + '&categoria=' + escapeHtml(recipe.categoriaId) + '">',
+      '  <div class="thumb-receita"><img loading="lazy" src="' + escapeHtml(image) + '" alt="Foto da receita ' + escapeHtml(recipe.titulo) + '"></div>',
       '  <div>',
       '    <h3>' + escapeHtml(recipe.titulo) + '</h3>',
       '    <p>' + (recipe.dica ? escapeHtml(recipe.dica) : "Uma receita guardada no seu livro pessoal.") + '</p>',
@@ -67,7 +62,7 @@
       '  <div class="categorias-grid">',
       categories.map(function (category) {
         return [
-          '<a class="categoria-card" href="livro.html?categoria=' + category.id + '" style="--categoria-cor:' + escapeHtml(category.cor || "#C4845A") + ';">',
+          '<a class="categoria-card" href="livro.html?categoria=' + escapeHtml(category.id) + '">',
           '  <div class="categoria-card-topo">',
           '    <span class="categoria-icone">' + escapeHtml(category.icone) + '</span>',
           '    <small>' + category.totalReceitas + (category.totalReceitas === 1 ? " receita" : " receitas") + '</small>',

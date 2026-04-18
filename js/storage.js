@@ -3,13 +3,20 @@
     recipes: "nr_recipes",
     categories: "nr_categories",
     initialized: "nr_initialized",
-    cleanedDefaults: "nr_cleaned_defaults"
+    cleanedDefaults: "nr_cleaned_defaults",
+    lastSync: "nr_last_sync"
   };
 
   var LEGACY_DEFAULT_RECIPE_IDS = ["1714000000000", "1714000000100"];
   var MAX_REPOSITORY_BYTES = 950 * 1024;
   var cache = null;
   var loadingPromise = null;
+  var syncState = {
+    state: navigator.onLine ? (window.GitHubSync && window.GitHubSync.hasToken() ? "sincronizado" : "sem-token") : "offline",
+    message: "",
+    lastSyncAt: window.localStorage.getItem(LOCAL_KEYS.lastSync) || "",
+    source: "initial"
+  };
 
   function defaultCategories() {
     return window.GitHubSync ? window.GitHubSync.getCategoriasIniciais() : [];
@@ -55,6 +62,52 @@
 
   function writeJson(key, value) {
     window.localStorage.setItem(key, JSON.stringify(value));
+  }
+
+  function emitSyncChanged() {
+    window.dispatchEvent(new CustomEvent("nr:sync-changed", {
+      detail: getSyncStatus()
+    }));
+  }
+
+  function setSyncState(nextState) {
+    syncState = Object.assign({}, syncState, nextState);
+    emitSyncChanged();
+  }
+
+  function noteSyncSuccess(source, message) {
+    var now = new Date().toISOString();
+    window.localStorage.setItem(LOCAL_KEYS.lastSync, now);
+    setSyncState({
+      state: window.GitHubSync.hasToken() ? "sincronizado" : "sem-token",
+      lastSyncAt: now,
+      source: source || "github",
+      message: message || (window.GitHubSync.hasToken()
+        ? "Conteudo atualizado com o GitHub."
+        : "Leitura publica atualizada; configure um token para gravar.")
+    });
+  }
+
+  function getSyncStatus() {
+    var state = Object.assign({}, syncState, {
+      tokenConfigured: window.GitHubSync && window.GitHubSync.hasToken(),
+      repo: window.GitHubSync ? window.GitHubSync.getRepoInfo() : null
+    });
+
+    if (!navigator.onLine) {
+      state.state = "offline";
+      state.message = state.lastSyncAt
+        ? "Sem conexao; exibindo os dados mais recentes deste dispositivo."
+        : "Sem conexao e sem sincronizacao recente.";
+      return state;
+    }
+
+    if (!state.tokenConfigured && state.state !== "erro") {
+      state.state = "sem-token";
+      state.message = state.message || "Leitura publica ativa; configure um token para editar e sincronizar.";
+    }
+
+    return state;
   }
 
   function getLocalData() {
@@ -110,12 +163,7 @@
         return;
       }
 
-      var localIsNewer = compareDates(
-        localRecipe.atualizadoEm || localRecipe.criadoEm,
-        githubRecipe.atualizadoEm || githubRecipe.criadoEm
-      ) > 0;
-
-      if (localIsNewer) {
+      if (compareDates(localRecipe.atualizadoEm || localRecipe.criadoEm, githubRecipe.atualizadoEm || githubRecipe.criadoEm) > 0) {
         map.set(id, localRecipe);
       }
     });
@@ -151,8 +199,14 @@
     loadingPromise = null;
   }
 
-  async function carregar() {
+  async function carregar(forceRefresh) {
+    var localData;
+
     clearLegacyDefaultRecipes();
+
+    if (forceRefresh) {
+      invalidateCache();
+    }
 
     if (cache) {
       return cache;
@@ -163,7 +217,7 @@
     }
 
     loadingPromise = (async function () {
-      var localData = getLocalData();
+      localData = getLocalData();
 
       try {
         var remote = await window.GitHubSync.lerReceitas();
@@ -171,12 +225,20 @@
           data: mergeData(localData, remote.data),
           sha: remote.sha
         };
+        noteSyncSuccess("github", window.GitHubSync.hasToken()
+          ? "Repositorio validado e dados atualizados."
+          : "Leitura publica atualizada; configure um token para habilitar escrita.");
       } catch (error) {
         cache = {
           data: localData,
           sha: null,
           error: error
         };
+        setSyncState({
+          state: navigator.onLine ? "erro" : "offline",
+          message: error && error.message ? error.message : "Nao foi possivel sincronizar com o GitHub.",
+          source: "local"
+        });
       } finally {
         loadingPromise = null;
       }
@@ -203,6 +265,7 @@
       porcoes: Number(recipe.porcoes || 0),
       dificuldade: String(recipe.dificuldade || "Facil"),
       foto: String(recipe.foto || ""),
+      fotoThumb: String(recipe.fotoThumb || ""),
       ingredientes: Array.isArray(recipe.ingredientes) ? recipe.ingredientes.filter(Boolean) : [],
       modoPreparo: Array.isArray(recipe.modoPreparo) ? recipe.modoPreparo.filter(Boolean) : [],
       dica: String(recipe.dica || "").trim(),
@@ -221,11 +284,7 @@
       return;
     }
 
-    var exists = data.categorias.some(function (category) {
-      return category.id === categoriaId;
-    });
-
-    if (exists) {
+    if (data.categorias.some(function (category) { return category.id === categoriaId; })) {
       return;
     }
 
@@ -255,6 +314,10 @@
     if (bytes > MAX_REPOSITORY_BYTES) {
       throw new Error("O arquivo de receitas ficou grande demais para o GitHub. Reduza fotos antigas e tente novamente.");
     }
+  }
+
+  function estimateRecipeSize(recipe) {
+    return new Blob([JSON.stringify(recipe || {})]).size;
   }
 
   function removeLocalRecipe(id) {
@@ -310,6 +373,37 @@
     }) || null;
   }
 
+  async function getSpaceReport() {
+    var loaded = await carregar();
+    var totalBytes = new Blob([JSON.stringify(normalizeData(loaded.data))]).size;
+    var recipes = loaded.data.receitas
+      .map(function (recipe) {
+        return {
+          id: recipe.id,
+          titulo: recipe.titulo,
+          bytes: estimateRecipeSize(recipe),
+          hasPhoto: Boolean(recipe.foto)
+        };
+      })
+      .sort(function (a, b) {
+        return b.bytes - a.bytes;
+      });
+
+    return {
+      maxBytes: MAX_REPOSITORY_BYTES,
+      totalBytes: totalBytes,
+      percentUsed: Math.min(100, Math.round((totalBytes / MAX_REPOSITORY_BYTES) * 100)),
+      threshold: totalBytes >= MAX_REPOSITORY_BYTES * 0.95
+        ? "critical"
+        : totalBytes >= MAX_REPOSITORY_BYTES * 0.8
+          ? "warning"
+          : totalBytes >= MAX_REPOSITORY_BYTES * 0.6
+            ? "attention"
+            : "ok",
+      recipes: recipes
+    };
+  }
+
   async function saveRecipe(recipe) {
     var normalized = normalizeRecipe(recipe);
 
@@ -335,6 +429,7 @@
 
       removeLocalRecipe(normalized.id);
       invalidateCache();
+      noteSyncSuccess("github", "Alteracao sincronizada com sucesso.");
       return normalized;
     }
 
@@ -343,6 +438,11 @@
     upsertRecipe(localData, normalized);
     persistLocalData(localData);
     invalidateCache();
+    setSyncState({
+      state: "sem-token",
+      message: "Receita salva neste navegador. Configure um token para sincronizar com outros dispositivos.",
+      source: "local"
+    });
     return normalized;
   }
 
@@ -369,6 +469,11 @@
       }
 
       invalidateCache();
+      setSyncState({
+        state: "sem-token",
+        message: "Receita excluida apenas deste navegador.",
+        source: "local"
+      });
       return;
     }
 
@@ -407,10 +512,17 @@
     }
 
     invalidateCache();
+    noteSyncSuccess("github", "Receita removida e sincronizada.");
+  }
+
+  async function refreshSync() {
+    invalidateCache();
+    return carregar(true);
   }
 
   async function initDefaultData() {
     clearLegacyDefaultRecipes();
+    setSyncState(getSyncStatus());
   }
 
   window.NRStorage = {
@@ -419,10 +531,14 @@
     getRecipesByCategory: getRecipesByCategory,
     getCategories: getCategories,
     getCategoryById: getCategoryById,
+    getSpaceReport: getSpaceReport,
+    getSyncStatus: getSyncStatus,
     saveRecipe: saveRecipe,
     deleteRecipe: deleteRecipe,
+    refreshSync: refreshSync,
     initDefaultData: initDefaultData,
     slugify: slugify,
-    clearLocalData: clearLocalData
+    clearLocalData: clearLocalData,
+    estimateRecipeSize: estimateRecipeSize
   };
 })();

@@ -3,8 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
   <title>Nossas Receitas | Admin</title>
   <meta name="description" content="Painel para criar, editar e sincronizar receitas do livro Nossas Receitas.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:title" content="Nossas Receitas | Admin">
+  <meta property="og:description" content="Configure a sincronizacao, organize o livro e salve novas receitas da familia.">
+  <meta property="og:image" content="assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Nossas Receitas | Admin">
+  <meta name="twitter:description" content="Configure a sincronizacao, organize o livro e salve novas receitas da familia.">
+  <meta name="twitter:image" content="assets/og.png">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lato:wght@400;700&family=Lora:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -20,6 +31,8 @@
         <h1 id="admin-titulo">Nova receita</h1>
       </div>
       <div class="admin-acoes-topo">
+        <div id="sync-status-admin" class="painel-status-shell"></div>
+        <button class="botao-secundario botao-utilitario" id="toggle-motion-admin" type="button">Movimento automatico</button>
         <a class="botao-secundario" href="livro.html">Voltar ao livro</a>
         <button class="botao-perigo" id="delete-recipe" type="button" hidden>Excluir receita</button>
       </div>
@@ -29,8 +42,8 @@
       <div class="config-github__topo">
         <div>
           <p class="sobretitulo">Sincronizacao</p>
-          <h2>Conectar com o GitHub</h2>
-          <p>Leitura funciona sem token. Para salvar no repositorio e sincronizar entre dispositivos, configure um token pessoal.</p>
+          <h2>Wizard de configuracao do GitHub</h2>
+          <p>Leitura funciona sem token. Para salvar no repositorio e sincronizar entre dispositivos, siga os 3 passos abaixo.</p>
         </div>
         <a
           class="botao-secundario"
@@ -40,6 +53,28 @@
         >
           Criar token
         </a>
+      </div>
+
+      <ol class="wizard-token">
+        <li>Crie um token pessoal para este repositorio e copie o valor gerado.</li>
+        <li>Confira owner, repositorio e branch abaixo. Em forks, voce pode sobrescrever essa deteccao automatica.</li>
+        <li>Cole o token, valide e confirme se o painel mostra o total de receitas e o destino correto.</li>
+      </ol>
+
+      <div class="repo-wrapper">
+        <label class="campo">
+          <span>Owner</span>
+          <input type="text" id="repo-owner" placeholder="Detectado automaticamente">
+        </label>
+        <label class="campo">
+          <span>Repositorio</span>
+          <input type="text" id="repo-name" placeholder="Detectado automaticamente">
+        </label>
+        <label class="campo">
+          <span>Branch</span>
+          <input type="text" id="repo-branch" placeholder="main">
+        </label>
+        <button class="botao-secundario botao-utilitario" type="button" id="btn-reset-repo">Usar deteccao automatica</button>
       </div>
 
       <div class="token-wrapper">
@@ -61,6 +96,24 @@
       </div>
 
       <p class="status-token" id="status-token" aria-live="polite"></p>
+      <div class="wizard-resumo" id="wizard-resumo" hidden></div>
+    </section>
+
+    <section class="card-admin espaco-admin" id="secao-espaco">
+      <div class="config-github__topo">
+        <div>
+          <p class="sobretitulo">Armazenamento</p>
+          <h2>Espaco usado em receitas.json</h2>
+          <p>O painel avisa quando o livro se aproxima do limite e mostra as receitas mais pesadas para facilitar a limpeza.</p>
+        </div>
+        <button class="botao-secundario" type="button" id="btn-atualizar-espaco">Atualizar espaco</button>
+      </div>
+      <div class="barra-espaco" aria-hidden="true">
+        <span id="barra-espaco-preenchimento"></span>
+      </div>
+      <p class="espaco-resumo" id="espaco-resumo"></p>
+      <div id="espaco-alerta"></div>
+      <div class="espaco-lista" id="espaco-lista"></div>
     </section>
 
     <div id="container-migracao"></div>
@@ -169,9 +222,11 @@
     </form>
   </main>
 
+  <script src="js/utils.js"></script>
   <script src="js/github-sync.js"></script>
   <script src="js/migration.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/sync-status.js"></script>
   <script src="js/admin.js"></script>
 </body>
 </html>

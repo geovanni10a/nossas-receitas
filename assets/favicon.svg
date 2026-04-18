@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Nossas Receitas">
+  <defs>
+    <linearGradient id="capa" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#5C3D1E"/>
+      <stop offset="100%" stop-color="#A0522D"/>
+    </linearGradient>
+  </defs>
+  <rect x="10" y="12" width="92" height="104" rx="16" fill="url(#capa)"/>
+  <rect x="22" y="24" width="68" height="80" rx="10" fill="#F5E6C8" opacity="0.92"/>
+  <path d="M102 18c8 4 16 14 16 26v44c0 12-8 22-16 26V18Z" fill="#3B2010" opacity="0.35"/>
+  <path d="M38 40c10-8 24-8 34 0 10 8 10 22 0 30L56 86 40 70c-10-8-10-22-2-30Z" fill="#A0522D"/>
+  <path d="M46 48h20" stroke="#F5E6C8" stroke-width="5" stroke-linecap="round"/>
+  <path d="M46 58h20" stroke="#F5E6C8" stroke-width="5" stroke-linecap="round"/>
+</svg>

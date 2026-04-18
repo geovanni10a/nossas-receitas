@@ -1,15 +1,15 @@
 (function () {
-  var REPO_OWNER = "geovanni10a";
-  var REPO_NAME = "nossas-receitas";
+  var DEFAULT_OWNER = "geovanni10a";
+  var DEFAULT_REPO = "nossas-receitas";
+  var DEFAULT_BRANCH = "main";
   var FILE_PATH = "data/receitas.json";
-  var BRANCH = "main";
   var TOKEN_KEY = "nr_github_token";
-  var API_URL = "https://api.github.com/repos/" + REPO_OWNER + "/" + REPO_NAME + "/contents/" + FILE_PATH;
+  var REPO_OVERRIDE_KEY = "nr_repo_override";
 
   function categoriasIniciais() {
     return [
       { id: "doces", nome: "Doces & Sobremesas", icone: "🍰", cor: "#C4845A" },
-      { id: "massas", nome: "Massas & Grãos", icone: "🍝", cor: "#A0522D" },
+      { id: "massas", nome: "Massas & Graos", icone: "🍝", cor: "#A0522D" },
       { id: "carnes", nome: "Carnes & Aves", icone: "🥩", cor: "#8B4513" },
       { id: "saladas", nome: "Saladas & Entradas", icone: "🥗", cor: "#6B7C5C" },
       { id: "bebidas", nome: "Bebidas", icone: "🥤", cor: "#7B9EA6" },
@@ -39,6 +39,86 @@
       receitas: Array.isArray(source.receitas) ? source.receitas : [],
       categorias: categorias
     };
+  }
+
+  function sanitizeRepoPart(value, fallback) {
+    var normalized = String(value || "")
+      .trim()
+      .replace(/^\/+|\/+$/g, "")
+      .replace(/\.git$/i, "");
+
+    return normalized || fallback;
+  }
+
+  function inferRepoInfo() {
+    var host = String(window.location.hostname || "").toLowerCase();
+    var pathParts = String(window.location.pathname || "")
+      .split("/")
+      .filter(Boolean);
+    var ownerMatch = host.match(/^([a-z0-9-]+)\.github\.io$/i);
+    var inferredRepo = pathParts[0] && pathParts[0].indexOf(".") === -1 ? pathParts[0] : DEFAULT_REPO;
+
+    return {
+      owner: ownerMatch ? sanitizeRepoPart(ownerMatch[1], DEFAULT_OWNER) : DEFAULT_OWNER,
+      repo: sanitizeRepoPart(inferredRepo, DEFAULT_REPO),
+      branch: DEFAULT_BRANCH,
+      filePath: FILE_PATH,
+      source: ownerMatch ? "pages" : "default"
+    };
+  }
+
+  function getRepoOverride() {
+    try {
+      var raw = window.localStorage.getItem(REPO_OVERRIDE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function setRepoOverride(config) {
+    var owner = sanitizeRepoPart(config && config.owner, "");
+    var repo = sanitizeRepoPart(config && config.repo, "");
+    var branch = sanitizeRepoPart(config && config.branch, DEFAULT_BRANCH);
+
+    if (!owner || !repo) {
+      window.localStorage.removeItem(REPO_OVERRIDE_KEY);
+      return null;
+    }
+
+    window.localStorage.setItem(REPO_OVERRIDE_KEY, JSON.stringify({
+      owner: owner,
+      repo: repo,
+      branch: branch
+    }));
+
+    return getRepoInfo();
+  }
+
+  function clearRepoOverride() {
+    window.localStorage.removeItem(REPO_OVERRIDE_KEY);
+  }
+
+  function getRepoInfo() {
+    var inferred = inferRepoInfo();
+    var override = getRepoOverride();
+
+    if (!override) {
+      return inferred;
+    }
+
+    return {
+      owner: sanitizeRepoPart(override.owner, inferred.owner),
+      repo: sanitizeRepoPart(override.repo, inferred.repo),
+      branch: sanitizeRepoPart(override.branch, inferred.branch),
+      filePath: FILE_PATH,
+      source: "override"
+    };
+  }
+
+  function getApiUrl() {
+    var repoInfo = getRepoInfo();
+    return "https://api.github.com/repos/" + repoInfo.owner + "/" + repoInfo.repo + "/contents/" + repoInfo.filePath;
   }
 
   function getToken() {
@@ -102,34 +182,66 @@
     return new TextDecoder().decode(bytes);
   }
 
+  function createError(message, status, code) {
+    var error = new Error(message);
+    error.status = status || 0;
+    error.code = code || "github_error";
+    return error;
+  }
+
   function buildReadError(status, payload) {
     var message = payload && payload.message ? payload.message : "";
 
-    if (status === 403 && message.toLowerCase().indexOf("rate limit") !== -1) {
-      return new Error("Limite de requisicoes da API atingido. Aguarde alguns minutos ou configure um token GitHub no painel admin.");
+    if (status === 401) {
+      return createError("Token invalido ou expirado. Gere outro token e tente novamente.", status, "invalid_token");
     }
 
-    return new Error("Erro ao ler receitas do GitHub: " + status + " - " + (message || "falha desconhecida"));
+    if (status === 403 && message.toLowerCase().indexOf("rate limit") !== -1) {
+      return createError("Limite de requisicoes da API atingido. Aguarde alguns minutos ou configure um token GitHub no painel admin.", status, "rate_limit");
+    }
+
+    if (status === 403) {
+      return createError("O token nao tem permissao para ler este repositorio. Revise o owner/repo e as permissoes.", status, "forbidden");
+    }
+
+    if (status === 404) {
+      return createError("Repositorio, branch ou arquivo de receitas nao encontrado. Revise owner, repo e branch no wizard.", status, "repo_not_found");
+    }
+
+    return createError("Erro ao ler receitas do GitHub: " + status + " - " + (message || "falha desconhecida"), status, "read_failed");
   }
 
   function buildWriteError(status, payload) {
     var message = payload && payload.message ? payload.message : "";
 
-    if (status === 403 && message.toLowerCase().indexOf("rate limit") !== -1) {
-      return new Error("Limite de requisicoes da API atingido. Aguarde alguns minutos ou tente novamente mais tarde.");
+    if (status === 401) {
+      return createError("Token invalido ou expirado. Gere outro token e tente novamente.", status, "invalid_token");
     }
 
-    return new Error("Erro ao salvar no GitHub: " + status + " - " + (message || "falha desconhecida"));
+    if (status === 403 && message.toLowerCase().indexOf("rate limit") !== -1) {
+      return createError("Limite de requisicoes da API atingido. Aguarde alguns minutos ou tente novamente mais tarde.", status, "rate_limit");
+    }
+
+    if (status === 403) {
+      return createError("O token nao tem permissao de escrita neste repositorio. Confira se ele pode editar o conteudo.", status, "write_forbidden");
+    }
+
+    if (status === 404) {
+      return createError("Repositorio, branch ou arquivo de receitas nao encontrado para gravacao.", status, "repo_not_found");
+    }
+
+    return createError("Erro ao salvar no GitHub: " + status + " - " + (message || "falha desconhecida"), status, "write_failed");
   }
 
   async function lerReceitas() {
-    var url = API_URL + "?ref=" + encodeURIComponent(BRANCH) + "&t=" + Date.now();
+    var repoInfo = getRepoInfo();
+    var url = getApiUrl() + "?ref=" + encodeURIComponent(repoInfo.branch) + "&t=" + Date.now();
     var response = await window.fetch(url, {
       headers: buildHeaders(true)
     });
 
     if (response.status === 404) {
-      return { data: dadosIniciais(), sha: null };
+      return { data: dadosIniciais(), sha: null, repoInfo: repoInfo };
     }
 
     if (!response.ok) {
@@ -142,26 +254,31 @@
 
     return {
       data: normalizeData(parsed),
-      sha: payload.sha || null
+      sha: payload.sha || null,
+      repoInfo: repoInfo
     };
   }
 
   async function salvarReceitas(data, sha, mensagemCommit) {
+    var repoInfo = getRepoInfo();
+    var body;
+    var response;
+
     if (!hasToken()) {
-      throw new Error("Token GitHub nao configurado. Configure o token no painel admin.");
+      throw createError("Token GitHub nao configurado. Configure o token no painel admin.", 0, "missing_token");
     }
 
-    var body = {
+    body = {
       message: mensagemCommit || "Atualiza receitas",
       content: utf8ToBase64(JSON.stringify(normalizeData(data), null, 2)),
-      branch: BRANCH
+      branch: repoInfo.branch
     };
 
     if (sha) {
       body.sha = sha;
     }
 
-    var response = await window.fetch(API_URL, {
+    response = await window.fetch(getApiUrl(), {
       method: "PUT",
       headers: Object.assign({}, buildHeaders(true), {
         "Content-Type": "application/json"
@@ -184,7 +301,7 @@
     try {
       return await salvarReceitas(currentData, currentSha, mensagemCommit);
     } catch (error) {
-      var isConflict = error.message.indexOf("409") !== -1 || error.message.indexOf("422") !== -1;
+      var isConflict = error.status === 409 || error.status === 422;
 
       if (!isConflict || retriesLeft <= 0) {
         throw error;
@@ -208,13 +325,10 @@
     hasToken: hasToken,
     clearToken: clearToken,
     getCategoriasIniciais: categoriasIniciais,
-    getRepoInfo: function () {
-      return {
-        owner: REPO_OWNER,
-        repo: REPO_NAME,
-        branch: BRANCH,
-        filePath: FILE_PATH
-      };
-    }
+    getRepoInfo: getRepoInfo,
+    getRepoOverride: getRepoOverride,
+    setRepoOverride: setRepoOverride,
+    clearRepoOverride: clearRepoOverride,
+    inferRepoInfo: inferRepoInfo
   };
 })();

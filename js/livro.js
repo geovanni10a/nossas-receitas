@@ -6,22 +6,28 @@
   };
 
   function escapeHtml(value) {
-    return String(value || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
+    return window.NRUtils.escapeHtml(value);
   }
 
   function useSimpleTransition() {
-    var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    var supports3D = window.CSS && window.CSS.supports && window.CSS.supports("perspective", "1px");
-    return reduced || !supports3D;
+    return window.NRUtils.shouldReduceMotion();
   }
 
   function getTransitionDuration() {
     return useSimpleTransition() ? 300 : 800;
+  }
+
+  function mountSharedControls(syncId, motionId, allowRefresh) {
+    var syncContainer = document.getElementById(syncId);
+    var motionButton = document.getElementById(motionId);
+
+    if (window.NRSyncStatus && syncContainer) {
+      window.NRSyncStatus.mount(syncContainer, { showRefresh: allowRefresh });
+    }
+
+    if (window.NRSyncStatus && motionButton) {
+      window.NRSyncStatus.mountMotionToggle(motionButton);
+    }
   }
 
   async function initCoverPage() {
@@ -35,6 +41,7 @@
 
     await window.NRStorage.initDefaultData();
     preview.innerHTML = await window.NRCategorias.previewMarkup();
+    mountSharedControls("sync-status-home", "toggle-motion-home", true);
 
     cover.addEventListener("click", function () {
       shell.classList.add("is-open");
@@ -193,7 +200,7 @@
         }
 
         dropdown.innerHTML = results.map(function (item) {
-          return '<a class="resultado-busca" href="livro.html?receita=' + item.id + '"><strong>' + escapeHtml(item.titulo) + "</strong><span>" + escapeHtml(item.categoria) + "</span></a>";
+          return '<a class="resultado-busca" href="livro.html?receita=' + escapeHtml(item.id) + '"><strong>' + escapeHtml(item.titulo) + "</strong><span>" + escapeHtml(item.categoria) + "</span></a>";
         }).join("");
       } catch (error) {
         if (currentSearchToken !== state.searchToken) {
@@ -231,6 +238,7 @@
     await window.NRStorage.initDefaultData();
     await renderCurrentRoute(true);
     initSearch();
+    mountSharedControls("sync-status-book", "toggle-motion-book", true);
 
     document.body.addEventListener("click", function (event) {
       var link = event.target.closest("a");

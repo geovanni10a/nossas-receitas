@@ -2,6 +2,17 @@
 
 Site estatico em HTML, CSS e JavaScript puro com visual de livro de receitas antigo, leitura publica pelo GitHub Pages e sincronizacao opcional via GitHub Contents API.
 
+## O que entrou nesta iteracao
+
+- CSP ativa nas 3 paginas, favicon e imagem OpenGraph.
+- Badge global de sincronizacao com estados `sincronizado`, `offline`, `sem-token` e `erro`, incluindo botao `Atualizar agora`.
+- Wizard de configuracao do GitHub no admin, com validacao imediata de owner, repositorio, branch e total de receitas.
+- Deteccao automatica de `owner/repo` em GitHub Pages, com override manual para forks.
+- Preferencia de movimento com modo automatico, reduzido ou completo.
+- Painel de uso de espaco com barra de progresso, alertas em thresholds e top-5 receitas mais pesadas.
+- Botao para recomprimir a foto de receitas pesadas direto no admin.
+- Suite Playwright expandida cobrindo XSS, badge de sync, wizard e armazenamento.
+
 ## Deploy no GitHub Pages
 
 1. Faca fork ou clone deste repositorio no GitHub.
@@ -39,8 +50,8 @@ Site estatico em HTML, CSS e JavaScript puro com visual de livro de receitas ant
 - `admin.html`: painel de cadastro, edicao, token e migracao.
 - `data/receitas.json`: base sincronizada no repositorio.
 - `css/`: estilos segmentados por responsabilidade.
-- `js/`: sincronizacao, persistencia, busca, renderizacao, navegacao e admin.
-- `assets/`: capa e placeholder visual.
+- `js/`: sincronizacao, persistencia, busca, renderizacao, navegacao, status e admin.
+- `assets/`: capa, favicon, imagem OG e placeholder visual.
 
 ## Observacoes
 

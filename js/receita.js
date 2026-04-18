@@ -2,12 +2,7 @@
   var PLACEHOLDER = "assets/sem-foto.svg";
 
   function escapeHtml(value) {
-    return String(value || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
+    return window.NRUtils.escapeHtml(value);
   }
 
   async function getSiblings(recipe) {
@@ -32,20 +27,21 @@
 
     var category = await window.NRStorage.getCategoryById(recipe.categoriaId);
     var siblings = await getSiblings(recipe);
+    var image = window.NRUtils.safeImageSource(recipe.foto, PLACEHOLDER);
 
     return [
       '<section class="detalhe-receita">',
       '  <div class="topo-detalhe">',
-      '    <a class="botao-secundario" href="livro.html?categoria=' + recipe.categoriaId + '">Voltar a categoria</a>',
+      '    <a class="botao-secundario" href="livro.html?categoria=' + escapeHtml(recipe.categoriaId) + '">Voltar a categoria</a>',
       '    <div class="acoes">',
-      siblings.previous ? '<a class="botao-secundario" href="livro.html?receita=' + siblings.previous.id + '&categoria=' + recipe.categoriaId + '">&larr; Receita anterior</a>' : "",
-      siblings.next ? '<a class="botao-secundario" href="livro.html?receita=' + siblings.next.id + '&categoria=' + recipe.categoriaId + '">Proxima receita &rarr;</a>' : "",
-      '      <a class="botao-icone" href="admin.html?id=' + recipe.id + '" aria-label="Editar receita"><span>&#9998;</span></a>',
+      siblings.previous ? '<a class="botao-secundario" href="livro.html?receita=' + escapeHtml(siblings.previous.id) + '&categoria=' + escapeHtml(recipe.categoriaId) + '">&larr; Receita anterior</a>' : "",
+      siblings.next ? '<a class="botao-secundario" href="livro.html?receita=' + escapeHtml(siblings.next.id) + '&categoria=' + escapeHtml(recipe.categoriaId) + '">Proxima receita &rarr;</a>' : "",
+      '      <a class="botao-icone" href="admin.html?id=' + escapeHtml(recipe.id) + '" aria-label="Editar receita"><span>&#9998;</span></a>',
       '    </div>',
       '  </div>',
       '  <div class="receita-dupla">',
       '    <article class="receita-info">',
-      '      <div class="receita-imagem"><img src="' + escapeHtml(recipe.foto || PLACEHOLDER) + '" alt="Foto da receita ' + escapeHtml(recipe.titulo) + '"></div>',
+      '      <div class="receita-imagem"><img src="' + escapeHtml(image) + '" alt="Foto da receita ' + escapeHtml(recipe.titulo) + '"></div>',
       '      <div>',
       '        <p class="sobretitulo">' + escapeHtml(category ? category.nome : "Sem categoria") + '</p>',
       '        <h1>' + escapeHtml(recipe.titulo) + '</h1>',
@@ -86,6 +82,7 @@
     container.querySelectorAll(".passo-item").forEach(function (button) {
       button.addEventListener("click", function () {
         button.classList.toggle("is-done");
+        button.setAttribute("aria-pressed", button.classList.contains("is-done") ? "true" : "false");
       });
     });
   }

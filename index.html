@@ -3,8 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
   <title>Nossas Receitas</title>
   <meta name="description" content="Livro pessoal de receitas com visual de livro antigo e sincronizacao via GitHub.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:title" content="Nossas Receitas">
+  <meta property="og:description" content="Um livro de receitas vintage para guardar sabores da familia com sincronizacao via GitHub.">
+  <meta property="og:image" content="assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Nossas Receitas">
+  <meta name="twitter:description" content="Um livro de receitas vintage para guardar sabores da familia com sincronizacao via GitHub.">
+  <meta name="twitter:image" content="assets/og.png">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lato:wght@400;700&family=Lora:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -15,6 +26,11 @@
 <body class="pagina-capa">
   <div class="fundo-livro"></div>
   <main class="intro-livro" aria-live="polite">
+    <div class="intro-utilidades">
+      <div id="sync-status-home" class="painel-status-shell"></div>
+      <button class="botao-secundario botao-utilitario" id="toggle-motion-home" type="button">Movimento automatico</button>
+    </div>
+
     <section class="mesa-livro">
       <div class="livro-intro-shell" id="intro-shell">
         <div class="livro-preview" id="preview" aria-hidden="true">
@@ -38,8 +54,10 @@
     </section>
   </main>
 
+  <script src="js/utils.js"></script>
   <script src="js/github-sync.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/sync-status.js"></script>
   <script src="js/categorias.js"></script>
   <script src="js/livro.js"></script>
 </body>

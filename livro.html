@@ -3,8 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
   <title>Nossas Receitas | Livro</title>
   <meta name="description" content="Indice, categorias e receitas do livro Nossas Receitas.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta property="og:title" content="Nossas Receitas | Livro">
+  <meta property="og:description" content="Abra o livro, navegue por categorias e encontre a proxima receita da familia.">
+  <meta property="og:image" content="assets/og.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Nossas Receitas | Livro">
+  <meta name="twitter:description" content="Abra o livro, navegue por categorias e encontre a proxima receita da familia.">
+  <meta name="twitter:image" content="assets/og.png">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lato:wght@400;700&family=Lora:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -23,7 +34,11 @@
         <input id="busca-receitas" type="search" placeholder="Busque por nome ou tag" autocomplete="off">
         <div class="dropdown-busca" id="busca-resultados" hidden></div>
       </div>
-      <a class="botao-secundario" href="admin.html">Adicionar receita</a>
+      <div class="topo-ferramentas">
+        <div id="sync-status-book" class="painel-status-shell"></div>
+        <button class="botao-secundario botao-utilitario" id="toggle-motion-book" type="button">Movimento automatico</button>
+        <a class="botao-secundario" href="admin.html">Adicionar receita</a>
+      </div>
     </header>
 
     <section class="livro-palco" id="livro-palco">
@@ -39,8 +54,10 @@
   </main>
 
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="js/utils.js"></script>
   <script src="js/github-sync.js"></script>
   <script src="js/storage.js"></script>
+  <script src="js/sync-status.js"></script>
   <script src="js/busca.js"></script>
   <script src="js/categorias.js"></script>
   <script src="js/receita.js"></script>
