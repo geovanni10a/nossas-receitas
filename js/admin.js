@@ -3,6 +3,7 @@
     recipeId: null,
     tags: [],
     photoData: "",
+    photoThumbData: "",
     draggingItem: null,
     isProcessingPhoto: false,
     photoJobId: 0,
@@ -14,11 +15,20 @@
   };
 
   var PHOTO_LIMIT_BYTES = 150 * 1024;
-  var PHOTO_TARGET_SIZE = 600;
-  var PHOTO_MIN_SIZE = 320;
+  var PHOTO_TARGET_WIDTH = 600;
+  var PHOTO_TARGET_HEIGHT = 600;
+  var PHOTO_MIN_WIDTH = 320;
+  var PHOTO_MIN_HEIGHT = 320;
+  var PHOTO_THUMB_LIMIT_BYTES = 20 * 1024;
+  var PHOTO_THUMB_TARGET_WIDTH = 160;
+  var PHOTO_THUMB_TARGET_HEIGHT = 120;
+  var PHOTO_THUMB_MIN_WIDTH = 120;
+  var PHOTO_THUMB_MIN_HEIGHT = 90;
   var RECOMPRESS_LIMIT_BYTES = 72 * 1024;
-  var RECOMPRESS_TARGET_SIZE = 420;
-  var RECOMPRESS_MIN_SIZE = 260;
+  var RECOMPRESS_TARGET_WIDTH = 420;
+  var RECOMPRESS_TARGET_HEIGHT = 420;
+  var RECOMPRESS_MIN_WIDTH = 260;
+  var RECOMPRESS_MIN_HEIGHT = 260;
   var DRAFT_KEY_PREFIX = "nr_draft_";
   var DRAFT_INTERVAL_MS = 5000;
 
@@ -82,6 +92,7 @@
       dica: "",
       tags: [],
       foto: "",
+      fotoThumb: "",
       ingredientes: [],
       modoPreparo: []
     };
@@ -115,6 +126,7 @@
       dica: byId("dica").value.trim(),
       tags: state.tags.slice(),
       foto: state.photoData,
+      fotoThumb: state.photoThumbData,
       ingredientes: getListValues("ingredientes-lista"),
       modoPreparo: getListValues("passos-lista")
     });
@@ -135,6 +147,7 @@
       || data.porcoes
       || data.dica
       || data.foto
+      || data.fotoThumb
       || data.tags.length
       || data.ingredientes.length
       || data.modoPreparo.length
@@ -544,34 +557,57 @@
     return Math.ceil((base64.length * 3) / 4) - padding;
   }
 
-  function drawSquareImage(ctx, img, origemX, origemY, menorLado, tamanhoAtual) {
-    ctx.clearRect(0, 0, tamanhoAtual, tamanhoAtual);
-    ctx.drawImage(img, origemX, origemY, menorLado, menorLado, 0, 0, tamanhoAtual, tamanhoAtual);
+  function getCentralCrop(img, targetWidth, targetHeight) {
+    var imageRatio = img.width / img.height;
+    var targetRatio = targetWidth / targetHeight;
+    var cropWidth = img.width;
+    var cropHeight = img.height;
+    var cropX = 0;
+    var cropY = 0;
+
+    if (imageRatio > targetRatio) {
+      cropWidth = img.height * targetRatio;
+      cropX = (img.width - cropWidth) / 2;
+    } else if (imageRatio < targetRatio) {
+      cropHeight = img.width / targetRatio;
+      cropY = (img.height - cropHeight) / 2;
+    }
+
+    return {
+      x: cropX,
+      y: cropY,
+      width: cropWidth,
+      height: cropHeight
+    };
   }
 
-  function compactarImagemBase64(dataUrl, targetSize, limitBytes, minSize) {
+  function drawCroppedImage(ctx, img, crop, outputWidth, outputHeight) {
+    ctx.clearRect(0, 0, outputWidth, outputHeight);
+    ctx.drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, outputWidth, outputHeight);
+  }
+
+  function compactarImagemBase64(dataUrl, targetWidth, targetHeight, limitBytes, minWidth, minHeight) {
     return new Promise(function (resolve, reject) {
       var img = new Image();
 
       img.onload = function () {
-        var menorLado = Math.min(img.width, img.height);
-        var origemX = (img.width - menorLado) / 2;
-        var origemY = (img.height - menorLado) / 2;
         var canvas = document.createElement("canvas");
         var ctx = canvas.getContext("2d");
-        var tamanhoAtual = targetSize;
+        var currentWidth = targetWidth;
+        var currentHeight = targetHeight;
+        var crop = getCentralCrop(img, targetWidth, targetHeight);
 
         if (!ctx) {
           reject(new Error("Nao foi possivel preparar a foto."));
           return;
         }
 
-        while (tamanhoAtual >= minSize) {
+        while (currentWidth >= minWidth && currentHeight >= minHeight) {
           var qualidadeAtual = 0.85;
 
-          canvas.width = tamanhoAtual;
-          canvas.height = tamanhoAtual;
-          drawSquareImage(ctx, img, origemX, origemY, menorLado, tamanhoAtual);
+          canvas.width = currentWidth;
+          canvas.height = currentHeight;
+          drawCroppedImage(ctx, img, crop, currentWidth, currentHeight);
 
           while (qualidadeAtual >= 0.45) {
             var base64 = canvas.toDataURL("image/jpeg", qualidadeAtual);
@@ -584,7 +620,8 @@
             qualidadeAtual -= 0.05;
           }
 
-          tamanhoAtual -= 40;
+          currentWidth -= 24;
+          currentHeight -= 18;
         }
 
         reject(new Error("Nao foi possivel compactar a foto. Tente outra imagem."));
@@ -598,12 +635,38 @@
     });
   }
 
-  function resizarFotoParaQuadrado(file, targetSize) {
+  function processarDerivadosDaFoto(dataUrl) {
+    return Promise.all([
+      compactarImagemBase64(
+        dataUrl,
+        PHOTO_TARGET_WIDTH,
+        PHOTO_TARGET_HEIGHT,
+        PHOTO_LIMIT_BYTES,
+        PHOTO_MIN_WIDTH,
+        PHOTO_MIN_HEIGHT
+      ),
+      compactarImagemBase64(
+        dataUrl,
+        PHOTO_THUMB_TARGET_WIDTH,
+        PHOTO_THUMB_TARGET_HEIGHT,
+        PHOTO_THUMB_LIMIT_BYTES,
+        PHOTO_THUMB_MIN_WIDTH,
+        PHOTO_THUMB_MIN_HEIGHT
+      )
+    ]).then(function (result) {
+      return {
+        foto: result[0],
+        fotoThumb: result[1]
+      };
+    });
+  }
+
+  function processarArquivoDeFoto(file) {
     return new Promise(function (resolve, reject) {
       var reader = new FileReader();
 
       reader.onload = function (event) {
-        compactarImagemBase64(event.target.result, targetSize || PHOTO_TARGET_SIZE, PHOTO_LIMIT_BYTES, PHOTO_MIN_SIZE)
+        processarDerivadosDaFoto(event.target.result)
           .then(resolve)
           .catch(reject);
       };
@@ -639,6 +702,7 @@
       porcoes: snapshot.porcoes ? Number(snapshot.porcoes) : 0,
       dificuldade: snapshot.dificuldade,
       foto: state.photoData,
+      fotoThumb: state.photoThumbData,
       ingredientes: snapshot.ingredientes,
       modoPreparo: snapshot.modoPreparo,
       dica: snapshot.dica
@@ -673,6 +737,7 @@
 
     state.tags = data.tags.slice();
     state.photoData = data.foto || "";
+    state.photoThumbData = data.fotoThumb || "";
 
     setPreview(state.photoData || "assets/sem-foto.svg");
     renderTags();
@@ -713,6 +778,7 @@
       dica: recipe.dica || "",
       tags: Array.isArray(recipe.tags) ? recipe.tags.slice() : [],
       foto: recipe.foto || "",
+      fotoThumb: recipe.fotoThumb || "",
       ingredientes: recipe.ingredientes || [],
       modoPreparo: recipe.modoPreparo || []
     });
@@ -818,6 +884,96 @@
     });
   }
 
+  async function getRecipesMissingThumbs() {
+    var recipes = await window.NRStorage.getAllRecipes();
+
+    return recipes.filter(function (recipe) {
+      return Boolean(recipe.foto) && !recipe.fotoThumb;
+    });
+  }
+
+  async function renderThumbnailMigration() {
+    var shell = byId("thumb-migracao-shell");
+    var missing = await getRecipesMissingThumbs();
+    var button;
+    var message;
+
+    if (!shell) {
+      return;
+    }
+
+    shell.innerHTML = "";
+
+    if (!missing.length) {
+      return;
+    }
+
+    message = document.createElement("div");
+    message.className = "thumb-migracao";
+    message.innerHTML = [
+      "<strong>Miniaturas antigas pendentes</strong>",
+      "<p>" + missing.length + (missing.length === 1
+        ? " receita ainda nao tem miniatura otimizada."
+        : " receitas ainda nao tem miniaturas otimizadas.") + "</p>",
+      "<p>Gere essas miniaturas uma vez para deixar as listas mais leves e manter os registros antigos no novo formato.</p>"
+    ].join("");
+
+    button = document.createElement("button");
+    button.className = "botao-secundario";
+    button.type = "button";
+    button.textContent = window.GitHubSync.hasToken()
+      ? "Gerar miniaturas antigas"
+      : "Configure um token para migrar";
+
+    button.addEventListener("click", function () {
+      if (!window.GitHubSync.hasToken()) {
+        showToast("Configure um token GitHub antes de migrar receitas antigas.", true);
+        return;
+      }
+
+      migrateLegacyThumbnails();
+    });
+
+    message.appendChild(button);
+    shell.appendChild(message);
+  }
+
+  async function migrateLegacyThumbnails() {
+    var recipes = await getRecipesMissingThumbs();
+    var currentIndex = 0;
+
+    if (!recipes.length) {
+      showToast("Nao ha miniaturas antigas para migrar.", false);
+      await renderThumbnailMigration();
+      return;
+    }
+
+    showToast("Gerando miniaturas antigas...", false);
+
+    while (currentIndex < recipes.length) {
+      var recipe = recipes[currentIndex];
+      var thumb = await compactarImagemBase64(
+        recipe.foto,
+        PHOTO_THUMB_TARGET_WIDTH,
+        PHOTO_THUMB_TARGET_HEIGHT,
+        PHOTO_THUMB_LIMIT_BYTES,
+        PHOTO_THUMB_MIN_WIDTH,
+        PHOTO_THUMB_MIN_HEIGHT
+      );
+
+      await window.NRStorage.saveRecipe(Object.assign({}, recipe, {
+        fotoThumb: thumb
+      }));
+
+      currentIndex += 1;
+    }
+
+    await renderSpaceUsage();
+    await renderThumbnailMigration();
+    renderDiagnostics();
+    showToast(recipes.length === 1 ? "Miniatura antiga gerada com sucesso." : "Miniaturas antigas geradas com sucesso.", false);
+  }
+
   function renderDiagnostics() {
     var list = byId("diagnostico-lista");
     var entries = window.NRDiagnostics ? window.NRDiagnostics.getEntries(20) : [];
@@ -889,16 +1045,38 @@
     showToast("Recompactando foto da receita...", false);
 
     try {
-      compressed = await compactarImagemBase64(recipe.foto, RECOMPRESS_TARGET_SIZE, RECOMPRESS_LIMIT_BYTES, RECOMPRESS_MIN_SIZE);
-      saved = await window.NRStorage.saveRecipe(Object.assign({}, recipe, { foto: compressed }));
+      compressed = await Promise.all([
+        compactarImagemBase64(
+          recipe.foto,
+          RECOMPRESS_TARGET_WIDTH,
+          RECOMPRESS_TARGET_HEIGHT,
+          RECOMPRESS_LIMIT_BYTES,
+          RECOMPRESS_MIN_WIDTH,
+          RECOMPRESS_MIN_HEIGHT
+        ),
+        compactarImagemBase64(
+          recipe.foto,
+          PHOTO_THUMB_TARGET_WIDTH,
+          PHOTO_THUMB_TARGET_HEIGHT,
+          PHOTO_THUMB_LIMIT_BYTES,
+          PHOTO_THUMB_MIN_WIDTH,
+          PHOTO_THUMB_MIN_HEIGHT
+        )
+      ]);
+      saved = await window.NRStorage.saveRecipe(Object.assign({}, recipe, {
+        foto: compressed[0],
+        fotoThumb: compressed[1]
+      }));
       reduction = Math.max(0, Math.round((1 - (getDataUrlByteSize(saved.foto) / oldBytes)) * 100));
 
       if (String(saved.id) === String(state.recipeId)) {
         state.photoData = saved.foto;
+        state.photoThumbData = saved.fotoThumb || "";
         setPreview(saved.foto);
       }
 
       await renderSpaceUsage();
+      await renderThumbnailMigration();
       showToast("Foto recomprimida com reducao de " + reduction + "%.", false);
     } catch (error) {
       showToast(error.message || "Nao foi possivel recomprimir a foto.", true);
@@ -948,13 +1126,14 @@
 
     setPhotoStatus("Processando foto...", true);
 
-    resizarFotoParaQuadrado(file, PHOTO_TARGET_SIZE).then(function (data) {
+    processarArquivoDeFoto(file).then(function (data) {
       if (currentJobId !== state.photoJobId) {
         return;
       }
 
-      state.photoData = data;
-      setPreview(data);
+      state.photoData = data.foto;
+      state.photoThumbData = data.fotoThumb;
+      setPreview(data.foto);
       setPhotoStatus("", false);
     }).catch(function (error) {
       if (currentJobId !== state.photoJobId) {
@@ -992,6 +1171,7 @@
       });
       await window.NRStorage.refreshSync();
       await renderSpaceUsage();
+      await renderThumbnailMigration();
 
       if (window.Migration) {
         window.Migration.verificarEMigrar(byId("container-migracao"));
@@ -1009,6 +1189,7 @@
     renderWizardSummary(null);
     byId("container-migracao").innerHTML = "";
     await renderSpaceUsage();
+    await renderThumbnailMigration();
   }
 
   function mountSharedControls() {
@@ -1091,6 +1272,7 @@
         clearDraft(previousDraftKey);
         clearDraft(state.draftKey);
         await renderSpaceUsage();
+        await renderThumbnailMigration();
         showToast(window.GitHubSync.hasToken() ? "Receita sincronizada com sucesso! OK" : "Receita salva neste navegador! OK", false);
 
         window.setTimeout(function () {
@@ -1147,6 +1329,7 @@
     startDraftAutosave();
     initDelete();
     await renderSpaceUsage();
+    await renderThumbnailMigration();
     renderDiagnostics();
 
     if (window.GitHubSync.hasToken() && window.Migration) {
