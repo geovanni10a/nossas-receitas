@@ -769,6 +769,7 @@
     if (window.NRSyncStatus) {
       window.NRSyncStatus.mount(byId("sync-status-admin"), { showRefresh: true });
       window.NRSyncStatus.mountMotionToggle(byId("toggle-motion-admin"));
+      window.NRSyncStatus.mountThemeToggle(byId("toggle-theme-admin"));
     }
   }
 

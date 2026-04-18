@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-96QVNzQRVQv14QgWojaclJir8h4z6XiENUwQGJxgW6c=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
   <title>Nossas Receitas | Admin</title>
   <meta name="description" content="Painel para criar, editar e sincronizar receitas do livro Nossas Receitas.">
   <meta property="og:type" content="website">
@@ -18,6 +18,7 @@
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <script>(function(){try{var key="nr_theme";var stored=window.localStorage.getItem(key);var preference=stored==="light"||stored==="dark"?stored:"auto";var media=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)");var resolved=preference==="auto"?(media&&media.matches?"dark":"light"):preference;document.documentElement.dataset.theme=resolved;document.documentElement.dataset.themePreference=preference;document.documentElement.style.colorScheme=resolved;}catch(error){}})();</script>
   <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&family=Lato:wght@400;700&family=Lora:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/admin.css">
@@ -32,6 +33,7 @@
       </div>
       <div class="admin-acoes-topo">
         <div id="sync-status-admin" class="painel-status-shell"></div>
+        <button class="botao-secundario botao-utilitario theme-toggle" id="toggle-theme-admin" type="button">Tema automatico</button>
         <button class="botao-secundario botao-utilitario" id="toggle-motion-admin" type="button">Movimento automatico</button>
         <a class="botao-secundario" href="livro.html">Voltar ao livro</a>
         <button class="botao-perigo" id="delete-recipe" type="button" hidden>Excluir receita</button>

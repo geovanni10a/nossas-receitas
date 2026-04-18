@@ -31,6 +31,7 @@
 }
 
 .receita-imagem {
+  position: relative;
   width: 100%;
   aspect-ratio: 1 / 1;
   overflow: hidden;
@@ -45,6 +46,18 @@
   height: 100%;
   object-fit: cover;
   object-position: center;
+}
+
+:root[data-theme="dark"] .receita-imagem::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(9, 6, 4, 0.06), rgba(9, 6, 4, 0.3));
+}
+
+:root[data-theme="dark"] .receita-imagem img {
+  filter: brightness(0.92) saturate(0.92);
 }
 
 .receita-info h1 {

@@ -108,6 +108,7 @@
 }
 
 .thumb-receita {
+  position: relative;
   width: 112px;
   height: 112px;
   border-radius: var(--raio-md);
@@ -120,6 +121,18 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+:root[data-theme="dark"] .thumb-receita::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(9, 6, 4, 0.04), rgba(9, 6, 4, 0.26));
+}
+
+:root[data-theme="dark"] .thumb-receita img {
+  filter: brightness(0.92) saturate(0.92);
 }
 
 .item-lista h3 {

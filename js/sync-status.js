@@ -122,8 +122,39 @@
     return update;
   }
 
+  function mountThemeToggle(button) {
+    if (!button || !window.NRUtils) {
+      return function () {};
+    }
+
+    var update = function () {
+      var preference = window.NRUtils.getThemePreference();
+      var resolvedTheme = window.NRUtils.getResolvedTheme(preference);
+      var label = window.NRUtils.getThemeModeLabel(preference);
+      var detail = preference === "auto"
+        ? label + " (seguindo " + (resolvedTheme === "dark" ? "escuro" : "claro") + " do sistema)"
+        : label;
+
+      button.textContent = label;
+      button.dataset.themeIcon = window.NRUtils.getThemeIconMode(preference, resolvedTheme);
+      button.title = detail;
+      button.setAttribute("aria-label", detail);
+    };
+
+    button.addEventListener("click", function () {
+      window.NRUtils.cycleThemePreference();
+      update();
+    });
+
+    window.addEventListener("nr:theme-changed", update);
+    update();
+
+    return update;
+  }
+
   window.NRSyncStatus = {
     mount: mount,
-    mountMotionToggle: mountMotionToggle
+    mountMotionToggle: mountMotionToggle,
+    mountThemeToggle: mountThemeToggle
   };
 })();

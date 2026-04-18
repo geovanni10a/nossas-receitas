@@ -1,4 +1,5 @@
 :root {
+  color-scheme: light;
   --cor-papel: #F5E6C8;
   --cor-papel-escuro: #EDD9A3;
   --cor-capa: #3B2010;
@@ -49,6 +50,34 @@
   --raio-lg: 16px;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --cor-papel: #241913;
+  --cor-papel-escuro: #18110d;
+  --cor-capa: #0F0A08;
+  --cor-titulo: #F4DEC2;
+  --cor-texto: #E7D4BF;
+  --cor-acento: #D89A62;
+  --cor-acento-suave: #B87847;
+  --cor-verde-ervas: #A6C08A;
+  --cor-borda: #8F6A46;
+  --cor-sombra: rgba(0, 0, 0, 0.42);
+  --cor-luz-24: rgba(244, 222, 194, 0.12);
+  --cor-luz-20: rgba(244, 222, 194, 0.1);
+  --cor-luz-18: rgba(244, 222, 194, 0.08);
+  --cor-luz-15: rgba(244, 222, 194, 0.07);
+  --cor-luz-14: rgba(244, 222, 194, 0.06);
+  --cor-luz-40: rgba(244, 222, 194, 0.2);
+  --cor-luz-25: rgba(244, 222, 194, 0.16);
+  --cor-escura-38: rgba(0, 0, 0, 0.56);
+  --cor-escura-22: rgba(0, 0, 0, 0.34);
+  --cor-escura-20: rgba(0, 0, 0, 0.3);
+  --cor-escura-12: rgba(0, 0, 0, 0.2);
+  --cor-escura-08: rgba(0, 0, 0, 0.14);
+  --cor-escura-05: rgba(0, 0, 0, 0.1);
+  --cor-escura-03: rgba(0, 0, 0, 0.07);
+}
+
 *,
 *::before,
 *::after {
@@ -66,6 +95,7 @@ body {
   font-family: var(--fonte-corpo);
   font-size: var(--texto-md);
   background: var(--cor-papel);
+  transition: background-color 220ms ease, color 220ms ease;
 }
 
 img {
@@ -78,6 +108,12 @@ input,
 select,
 textarea {
   font: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--cor-acento-suave);
+  opacity: 0.9;
 }
 
 button,
@@ -201,6 +237,30 @@ a {
   min-height: 40px;
   padding-inline: var(--espaco-md);
   white-space: nowrap;
+}
+
+.theme-toggle {
+  gap: calc(var(--espaco-sm) - 2px);
+}
+
+.theme-toggle::before {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.1rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.theme-toggle[data-theme-icon="light"]::before {
+  content: "\2600";
+}
+
+.theme-toggle[data-theme-icon="dark"]::before {
+  content: "\263E";
+}
+
+.theme-toggle[data-theme-icon="auto"]::before {
+  content: "\25D1";
 }
 
 .painel-status-shell {

@@ -57,4 +57,48 @@ describe("NRUtils", () => {
     });
     expect(utils.shouldReduceMotion()).toBe(true);
   });
+
+  it("resolve o tema automaticamente a partir do sistema", () => {
+    env.close();
+    env = createBrowserEnv({
+      matchMedia(query) {
+        return {
+          matches: query === "(prefers-color-scheme: dark)",
+          media: query,
+          onchange: null,
+          addListener() {},
+          removeListener() {},
+          addEventListener() {},
+          removeEventListener() {},
+          dispatchEvent() {
+            return false;
+          }
+        };
+      }
+    });
+    env.loadScript("js/utils.js");
+    utils = env.window.NRUtils;
+
+    expect(utils.getThemePreference()).toBe("auto");
+    expect(utils.getResolvedTheme()).toBe("dark");
+    expect(env.window.document.documentElement.dataset.theme).toBe("dark");
+  });
+
+  it("persiste tema explicito e atualiza o documento", () => {
+    expect(utils.getThemePreference()).toBe("auto");
+    expect(utils.getResolvedTheme()).toBe("light");
+
+    utils.setThemePreference("dark");
+    expect(utils.getThemePreference()).toBe("dark");
+    expect(utils.getResolvedTheme()).toBe("dark");
+    expect(env.window.document.documentElement.dataset.theme).toBe("dark");
+
+    expect(utils.cycleThemePreference()).toBe("light");
+    expect(utils.getThemePreference()).toBe("light");
+    expect(utils.getThemeModeLabel(utils.getThemePreference())).toBe("Tema claro");
+
+    expect(utils.cycleThemePreference()).toBe("auto");
+    expect(utils.getThemePreference()).toBe("auto");
+    expect(utils.getThemeIconMode(utils.getThemePreference(), utils.getResolvedTheme())).toBe("auto");
+  });
 });

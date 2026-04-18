@@ -1,5 +1,8 @@
 (function () {
   var MOTION_KEY = "nr_prefs_motion";
+  var THEME_KEY = "nr_theme";
+  var themeMediaQuery = null;
+  var themeWatcherBound = false;
 
   function escapeHtml(value) {
     return String(value || "")
@@ -153,10 +156,125 @@
     return next;
   }
 
+  function getThemeMediaQuery() {
+    if (!themeMediaQuery && typeof window.matchMedia === "function") {
+      themeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    }
+
+    return themeMediaQuery;
+  }
+
+  function getThemePreference() {
+    var stored = window.localStorage.getItem(THEME_KEY);
+    return stored === "light" || stored === "dark" ? stored : "auto";
+  }
+
+  function getResolvedTheme(preference) {
+    var currentPreference = preference === "light" || preference === "dark" ? preference : getThemePreference();
+    var media = getThemeMediaQuery();
+
+    if (currentPreference === "light" || currentPreference === "dark") {
+      return currentPreference;
+    }
+
+    return media && media.matches ? "dark" : "light";
+  }
+
+  function emitThemeChanged(resolvedTheme) {
+    window.dispatchEvent(new CustomEvent("nr:theme-changed", {
+      detail: {
+        preference: getThemePreference(),
+        resolvedTheme: resolvedTheme || getResolvedTheme()
+      }
+    }));
+  }
+
+  function applyTheme(preference) {
+    var root = document.documentElement;
+    var currentPreference = preference === "light" || preference === "dark" ? preference : getThemePreference();
+    var resolvedTheme = getResolvedTheme(currentPreference);
+
+    if (root) {
+      root.dataset.theme = resolvedTheme;
+      root.dataset.themePreference = currentPreference;
+      root.style.colorScheme = resolvedTheme;
+    }
+
+    return resolvedTheme;
+  }
+
+  function setThemePreference(value) {
+    var nextValue = value === "light" || value === "dark" ? value : "auto";
+
+    if (nextValue === "auto") {
+      window.localStorage.removeItem(THEME_KEY);
+    } else {
+      window.localStorage.setItem(THEME_KEY, nextValue);
+    }
+
+    emitThemeChanged(applyTheme(nextValue));
+  }
+
+  function getThemeModeLabel(value) {
+    if (value === "dark") {
+      return "Tema escuro";
+    }
+
+    if (value === "light") {
+      return "Tema claro";
+    }
+
+    return "Tema automatico";
+  }
+
+  function getThemeIconMode(preference, resolvedTheme) {
+    var currentPreference = preference === "light" || preference === "dark" ? preference : getThemePreference();
+    var currentResolvedTheme = resolvedTheme === "light" || resolvedTheme === "dark" ? resolvedTheme : getResolvedTheme(currentPreference);
+
+    if (currentPreference === "auto") {
+      return "auto";
+    }
+
+    return currentResolvedTheme;
+  }
+
+  function cycleThemePreference() {
+    var current = getThemePreference();
+    var next = current === "auto" ? "dark" : (current === "dark" ? "light" : "auto");
+
+    setThemePreference(next);
+    return next;
+  }
+
+  function bindThemeWatcher() {
+    var media = getThemeMediaQuery();
+
+    if (!media || themeWatcherBound) {
+      return;
+    }
+
+    var onChange = function () {
+      if (getThemePreference() === "auto") {
+        emitThemeChanged(applyTheme("auto"));
+      }
+    };
+
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", onChange);
+    } else if (typeof media.addListener === "function") {
+      media.addListener(onChange);
+    }
+
+    themeWatcherBound = true;
+  }
+
   function sanitizeText(value, fallback) {
     var normalized = String(value || "").trim();
     return normalized || (fallback || "");
   }
+
+  bindThemeWatcher();
+  applyTheme();
 
   window.NRUtils = {
     escapeHtml: escapeHtml,
@@ -170,6 +288,13 @@
     getMotionModeLabel: getMotionModeLabel,
     shouldReduceMotion: shouldReduceMotion,
     cycleMotionPreference: cycleMotionPreference,
+    getThemePreference: getThemePreference,
+    getResolvedTheme: getResolvedTheme,
+    applyTheme: applyTheme,
+    setThemePreference: setThemePreference,
+    getThemeModeLabel: getThemeModeLabel,
+    getThemeIconMode: getThemeIconMode,
+    cycleThemePreference: cycleThemePreference,
     sanitizeText: sanitizeText
   };
 })();

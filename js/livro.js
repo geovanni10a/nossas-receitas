@@ -17,9 +17,10 @@
     return useSimpleTransition() ? 300 : 800;
   }
 
-  function mountSharedControls(syncId, motionId, allowRefresh) {
+  function mountSharedControls(syncId, motionId, themeId, allowRefresh) {
     var syncContainer = document.getElementById(syncId);
     var motionButton = document.getElementById(motionId);
+    var themeButton = document.getElementById(themeId);
 
     if (window.NRSyncStatus && syncContainer) {
       window.NRSyncStatus.mount(syncContainer, { showRefresh: allowRefresh });
@@ -27,6 +28,10 @@
 
     if (window.NRSyncStatus && motionButton) {
       window.NRSyncStatus.mountMotionToggle(motionButton);
+    }
+
+    if (window.NRSyncStatus && themeButton) {
+      window.NRSyncStatus.mountThemeToggle(themeButton);
     }
   }
 
@@ -41,7 +46,7 @@
 
     await window.NRStorage.initDefaultData();
     preview.innerHTML = await window.NRCategorias.previewMarkup();
-    mountSharedControls("sync-status-home", "toggle-motion-home", true);
+    mountSharedControls("sync-status-home", "toggle-motion-home", "toggle-theme-home", true);
 
     cover.addEventListener("click", function () {
       shell.classList.add("is-open");
@@ -264,7 +269,7 @@
     await window.NRStorage.initDefaultData();
     await renderCurrentRoute(true);
     initSearch();
-    mountSharedControls("sync-status-book", "toggle-motion-book", true);
+    mountSharedControls("sync-status-book", "toggle-motion-book", "toggle-theme-book", true);
 
     document.body.addEventListener("click", function (event) {
       var link = event.target.closest("a");
