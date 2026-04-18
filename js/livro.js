@@ -56,8 +56,8 @@
   }
 
   function finalizeRender(html, onAfterRender, container) {
-    container.innerHTML = html;
-    state.currentHTML = html;
+    mountRenderable(container, html);
+    state.currentHTML = typeof html === "string" ? html : "__rendered__";
 
     if (typeof onAfterRender === "function") {
       onAfterRender(container);
@@ -73,6 +73,32 @@
     }
   }
 
+  function isNodeRenderable(content) {
+    return Boolean(content) && typeof content === "object" && typeof content.nodeType === "number";
+  }
+
+  function cloneRenderable(content) {
+    return isNodeRenderable(content) ? content.cloneNode(true) : content;
+  }
+
+  function mountRenderable(container, content) {
+    if (!container) {
+      return;
+    }
+
+    if (typeof content === "string") {
+      container.innerHTML = content;
+      return;
+    }
+
+    if (isNodeRenderable(content)) {
+      container.replaceChildren(content);
+      return;
+    }
+
+    container.replaceChildren();
+  }
+
   function renderBookView(html, onAfterRender, renderToken) {
     var pageFront = document.getElementById("front-content");
     var pageBack = document.getElementById("back-content");
@@ -82,7 +108,7 @@
       return;
     }
 
-    pageBack.innerHTML = html;
+    mountRenderable(pageBack, cloneRenderable(html));
     page.classList.add("is-turning");
 
     window.setTimeout(function () {
@@ -90,7 +116,7 @@
         return;
       }
 
-      pageBack.innerHTML = "";
+      pageBack.replaceChildren();
       page.classList.remove("is-turning");
       finalizeRender(html, onAfterRender, pageFront);
     }, getTransitionDuration());

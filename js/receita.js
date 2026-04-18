@@ -1,9 +1,7 @@
 (function () {
   var PLACEHOLDER = "assets/sem-foto.svg";
-
-  function escapeHtml(value) {
-    return window.NRUtils.escapeHtml(value);
-  }
+  var h = window.NRDom.h;
+  var fragment = window.NRDom.fragment;
 
   async function getSiblings(recipe) {
     var siblings = await window.NRStorage.getRecipesByCategory(recipe.categoriaId);
@@ -22,60 +20,143 @@
 
     if (!recipe) {
       window.location.href = "livro.html?mensagem=" + encodeURIComponent("Receita nao encontrada.");
-      return "";
+      return null;
     }
 
     var category = await window.NRStorage.getCategoryById(recipe.categoriaId);
     var siblings = await getSiblings(recipe);
     var image = window.NRUtils.safeImageSource(recipe.foto, PLACEHOLDER);
+    var categoryName = category ? category.nome : "Sem categoria";
+    var recipeTags = Array.isArray(recipe.tags) ? recipe.tags.filter(Boolean) : [];
+    var ingredients = Array.isArray(recipe.ingredientes) ? recipe.ingredientes.filter(Boolean) : [];
+    var steps = Array.isArray(recipe.modoPreparo) ? recipe.modoPreparo.filter(Boolean) : [];
 
-    return [
-      '<section class="detalhe-receita">',
-      '  <div class="topo-detalhe">',
-      '    <a class="botao-secundario" href="livro.html?categoria=' + escapeHtml(recipe.categoriaId) + '">Voltar a categoria</a>',
-      '    <div class="acoes">',
-      siblings.previous ? '<a class="botao-secundario" href="livro.html?receita=' + escapeHtml(siblings.previous.id) + '&categoria=' + escapeHtml(recipe.categoriaId) + '">&larr; Receita anterior</a>' : "",
-      siblings.next ? '<a class="botao-secundario" href="livro.html?receita=' + escapeHtml(siblings.next.id) + '&categoria=' + escapeHtml(recipe.categoriaId) + '">Proxima receita &rarr;</a>' : "",
-      '      <a class="botao-icone" href="admin.html?id=' + escapeHtml(recipe.id) + '" aria-label="Editar receita"><span>&#9998;</span></a>',
-      '    </div>',
-      '  </div>',
-      '  <div class="receita-dupla">',
-      '    <article class="receita-info">',
-      '      <div class="receita-imagem"><img src="' + escapeHtml(image) + '" alt="Foto da receita ' + escapeHtml(recipe.titulo) + '"></div>',
-      '      <div>',
-      '        <p class="sobretitulo">' + escapeHtml(category ? category.nome : "Sem categoria") + '</p>',
-      '        <h1>' + escapeHtml(recipe.titulo) + '</h1>',
-      '      </div>',
-      '      <div class="receita-resumo">',
-      '        <span>Tempo de preparo: ' + escapeHtml(recipe.tempoPreparo || "Livre") + '</span>',
-      recipe.tempoForno ? '        <span>Tempo de forno: ' + escapeHtml(recipe.tempoForno) + '</span>' : "",
-      '        <span>Porcoes: ' + escapeHtml(recipe.porcoes || "-") + '</span>',
-      '        <span>Dificuldade: ' + escapeHtml(recipe.dificuldade || "Facil") + '</span>',
-      '      </div>',
-      Array.isArray(recipe.tags) && recipe.tags.length
-        ? '      <div class="receita-tags">' + recipe.tags.map(function (tag) { return '<span class="receita-tag">#' + escapeHtml(tag) + '</span>'; }).join("") + "</div>"
-        : "",
-      recipe.dica ? '      <div class="nota-receita"><strong>Dica:</strong> ' + escapeHtml(recipe.dica) + '</div>' : "",
-      '    </article>',
-      '    <article class="receita-corpo">',
-      '      <section>',
-      '        <h2>Ingredientes</h2>',
-      '        <ul class="lista-ingredientes">',
-      (recipe.ingredientes || []).map(function (item) { return "<li>" + escapeHtml(item) + "</li>"; }).join(""),
-      '        </ul>',
-      '      </section>',
-      '      <section>',
-      '        <h2>Modo de preparo</h2>',
-      '        <div class="lista-passos">',
-      (recipe.modoPreparo || []).map(function (step, index) {
-        return '<button class="passo-item" type="button"><span class="numero-passo">' + (index + 1) + "</span><span>" + escapeHtml(step) + "</span></button>";
-      }).join(""),
-      '        </div>',
-      '      </section>',
-      '    </article>',
-      '  </div>',
-      '</section>'
-    ].join("");
+    return h(
+      "section",
+      { className: "detalhe-receita" },
+      h(
+        "div",
+        { className: "topo-detalhe" },
+        h(
+          "a",
+          {
+            className: "botao-secundario",
+            href: "livro.html?categoria=" + encodeURIComponent(recipe.categoriaId)
+          },
+          "Voltar a categoria"
+        ),
+        h(
+          "div",
+          { className: "acoes" },
+          siblings.previous ? h(
+            "a",
+            {
+              className: "botao-secundario",
+              href: "livro.html?receita=" + encodeURIComponent(siblings.previous.id) + "&categoria=" + encodeURIComponent(recipe.categoriaId)
+            },
+            "← Receita anterior"
+          ) : null,
+          siblings.next ? h(
+            "a",
+            {
+              className: "botao-secundario",
+              href: "livro.html?receita=" + encodeURIComponent(siblings.next.id) + "&categoria=" + encodeURIComponent(recipe.categoriaId)
+            },
+            "Proxima receita →"
+          ) : null,
+          h(
+            "a",
+            {
+              className: "botao-icone",
+              href: "admin.html?id=" + encodeURIComponent(recipe.id),
+              "aria-label": "Editar receita"
+            },
+            h("span", null, "✎")
+          )
+        )
+      ),
+      h(
+        "div",
+        { className: "receita-dupla" },
+        h(
+          "article",
+          { className: "receita-info" },
+          h(
+            "div",
+            { className: "receita-imagem" },
+            h("img", {
+              src: image,
+              alt: "Foto da receita " + recipe.titulo
+            })
+          ),
+          h(
+            "div",
+            null,
+            h("p", { className: "sobretitulo" }, categoryName),
+            h("h1", null, recipe.titulo)
+          ),
+          h(
+            "div",
+            { className: "receita-resumo" },
+            h("span", null, "Tempo de preparo: " + (recipe.tempoPreparo || "Livre")),
+            recipe.tempoForno ? h("span", null, "Tempo de forno: " + recipe.tempoForno) : null,
+            h("span", null, "Porcoes: " + (recipe.porcoes || "-")),
+            h("span", null, "Dificuldade: " + (recipe.dificuldade || "Facil"))
+          ),
+          recipeTags.length ? h(
+            "div",
+            { className: "receita-tags" },
+            recipeTags.map(function (tag) {
+              return h("span", { className: "receita-tag" }, "#" + tag);
+            })
+          ) : null,
+          recipe.dica ? h(
+            "div",
+            { className: "nota-receita" },
+            h("strong", null, "Dica:"),
+            " ",
+            recipe.dica
+          ) : null
+        ),
+        h(
+          "article",
+          { className: "receita-corpo" },
+          h(
+            "section",
+            null,
+            h("h2", null, "Ingredientes"),
+            h(
+              "ul",
+              { className: "lista-ingredientes" },
+              ingredients.map(function (item) {
+                return h("li", null, item);
+              })
+            )
+          ),
+          h(
+            "section",
+            null,
+            h("h2", null, "Modo de preparo"),
+            h(
+              "div",
+              { className: "lista-passos" },
+              steps.map(function (step, index) {
+                return h(
+                  "button",
+                  {
+                    className: "passo-item",
+                    type: "button",
+                    "aria-pressed": "false"
+                  },
+                  h("span", { className: "numero-passo" }, String(index + 1)),
+                  h("span", null, step)
+                );
+              })
+            )
+          )
+        )
+      )
+    );
   }
 
   function bindRecipeInteractions(container) {
