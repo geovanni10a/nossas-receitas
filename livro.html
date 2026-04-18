@@ -28,14 +28,15 @@
   <link rel="stylesheet" href="css/receita.css">
 </head>
 <body class="pagina-livro">
+  <a class="skip-link" href="#conteudo-principal">Pular para o conteudo principal</a>
   <div class="fundo-livro"></div>
-  <main class="livro-app">
+  <main class="livro-app" id="conteudo-principal" tabindex="-1">
     <header class="topo-livro">
       <a class="marca-livro" href="index.html">Nossas Receitas</a>
-      <div class="busca-shell" id="busca-shell">
+      <div class="busca-shell" id="busca-shell" role="search">
         <label class="rotulo-busca" for="busca-receitas">Buscar receitas</label>
-        <input id="busca-receitas" type="search" placeholder="Busque por nome ou tag" autocomplete="off">
-        <div class="dropdown-busca" id="busca-resultados" hidden></div>
+        <input id="busca-receitas" type="search" placeholder="Busque por nome ou tag" autocomplete="off" aria-controls="busca-resultados">
+        <div class="dropdown-busca" id="busca-resultados" hidden aria-live="polite"></div>
       </div>
       <div class="topo-ferramentas">
         <div id="sync-status-book" class="painel-status-shell"></div>

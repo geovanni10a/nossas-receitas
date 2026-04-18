@@ -117,9 +117,35 @@
     };
   }
 
+  function getRepoApiBaseUrl(repoInfo) {
+    var target = repoInfo || getRepoInfo();
+    return "https://api.github.com/repos/" + target.owner + "/" + target.repo;
+  }
+
+  function getContentsApiUrl(repoInfo) {
+    var target = repoInfo || getRepoInfo();
+    return getRepoApiBaseUrl(target) + "/contents/" + target.filePath;
+  }
+
+  function getCommitHistoryApiUrl(repoInfo, limit) {
+    var target = repoInfo || getRepoInfo();
+    var perPage = Math.max(1, Number(limit || 20));
+
+    return getRepoApiBaseUrl(target)
+      + "/commits?path=" + encodeURIComponent(target.filePath)
+      + "&sha=" + encodeURIComponent(target.branch)
+      + "&per_page=" + perPage;
+  }
+
+  function getContentsReadUrl(repoInfo, ref) {
+    var target = repoInfo || getRepoInfo();
+    var resolvedRef = ref || target.branch;
+
+    return getContentsApiUrl(target) + "?ref=" + encodeURIComponent(resolvedRef) + "&t=" + Date.now();
+  }
+
   function getApiUrl() {
-    var repoInfo = getRepoInfo();
-    return "https://api.github.com/repos/" + repoInfo.owner + "/" + repoInfo.repo + "/contents/" + repoInfo.filePath;
+    return getContentsApiUrl(getRepoInfo());
   }
 
   function logDiagnostic(entry) {
@@ -234,6 +260,11 @@
     }
 
     return new TextDecoder().decode(bytes);
+  }
+
+  function parseContentPayload(payload) {
+    var encodedContent = String(payload && payload.content || "").replace(/\n/g, "");
+    return normalizeData(encodedContent ? JSON.parse(base64ToUtf8(encodedContent)) : dadosIniciais());
   }
 
   function createError(message, status, code, details) {
@@ -387,7 +418,7 @@
 
   async function lerReceitas() {
     var repoInfo = getRepoInfo();
-    var url = getApiUrl() + "?ref=" + encodeURIComponent(repoInfo.branch) + "&t=" + Date.now();
+    var url = getContentsReadUrl(repoInfo, repoInfo.branch);
     var cachedSnapshot = readCachedSnapshot(repoInfo);
     var headers = buildHeaders(true);
 
@@ -446,9 +477,7 @@
     }
 
     var payload = await response.json();
-    var encodedContent = String(payload.content || "").replace(/\n/g, "");
-    var parsed = encodedContent ? JSON.parse(base64ToUtf8(encodedContent)) : dadosIniciais();
-    var normalized = normalizeData(parsed);
+    var normalized = parseContentPayload(payload);
     var etag = response.headers && response.headers.get ? String(response.headers.get("ETag") || "") : "";
 
     writeCachedSnapshot(repoInfo, {
@@ -471,6 +500,83 @@
       etag: etag,
       fromCache: false
     };
+  }
+
+  async function lerReceitasEmRef(ref) {
+    var repoInfo = getRepoInfo();
+    var resolvedRef = ref || repoInfo.branch;
+    var response = await window.fetch(getContentsReadUrl(repoInfo, resolvedRef), {
+      headers: buildHeaders(true)
+    });
+
+    if (response.status === 404) {
+      return {
+        data: dadosIniciais(),
+        sha: null,
+        repoInfo: repoInfo,
+        ref: resolvedRef
+      };
+    }
+
+    if (!response.ok) {
+      throw buildReadError(response.status, await safeJson(response), response.headers);
+    }
+
+    var payload = await response.json();
+
+    return {
+      data: parseContentPayload(payload),
+      sha: payload.sha || null,
+      repoInfo: repoInfo,
+      ref: resolvedRef
+    };
+  }
+
+  async function listarHistoricoReceitas(limit) {
+    var repoInfo = getRepoInfo();
+    var response = await window.fetch(getCommitHistoryApiUrl(repoInfo, limit), {
+      headers: buildHeaders(true)
+    });
+
+    if (!response.ok) {
+      var historyError = buildReadError(response.status, await safeJson(response), response.headers);
+
+      logDiagnostic({
+        source: "github-sync",
+        kind: "history",
+        status: "error",
+        message: historyError.message,
+        details: repoInfo.owner + "/" + repoInfo.repo + "@" + repoInfo.branch
+      });
+      throw historyError;
+    }
+
+    var payload = await response.json();
+    var entries = Array.isArray(payload) ? payload.map(function (item) {
+      var fullMessage = item && item.commit && item.commit.message ? String(item.commit.message) : "";
+      var lines = fullMessage.split(/\r?\n/);
+
+      return {
+        sha: String(item && item.sha || ""),
+        shortSha: String(item && item.sha || "").slice(0, 7),
+        message: lines[0] || "Commit sem titulo",
+        messageBody: lines.slice(1).join("\n").trim(),
+        authoredAt: item && item.commit && item.commit.author ? item.commit.author.date || "" : "",
+        authorName: item && item.commit && item.commit.author ? item.commit.author.name || "Autor desconhecido" : "Autor desconhecido",
+        parentSha: item && Array.isArray(item.parents) && item.parents[0] ? String(item.parents[0].sha || "") : "",
+        htmlUrl: item && item.html_url ? String(item.html_url) : ""
+      };
+    }) : [];
+
+    logDiagnostic({
+      source: "github-sync",
+      kind: "history",
+      status: "success",
+      message: "Historico recente do arquivo de receitas carregado.",
+      details: repoInfo.owner + "/" + repoInfo.repo + "@" + repoInfo.branch
+    });
+
+    return entries;
   }
 
   async function salvarReceitas(data, sha, mensagemCommit) {
@@ -561,6 +667,8 @@
 
   window.GitHubSync = {
     lerReceitas: lerReceitas,
+    lerReceitasEmRef: lerReceitasEmRef,
+    listarHistoricoReceitas: listarHistoricoReceitas,
     salvarReceitas: salvarReceitas,
     salvarComRetry: salvarComRetry,
     getToken: getToken,
@@ -586,7 +694,8 @@
       getRateLimitResetMs: getRateLimitResetMs,
       formatRetryDelay: formatRetryDelay,
       shouldRetryWrite: shouldRetryWrite,
-      getRetryDelay: getRetryDelay
+      getRetryDelay: getRetryDelay,
+      parseContentPayload: parseContentPayload
     }
   };
 })();

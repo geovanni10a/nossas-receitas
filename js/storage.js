@@ -585,6 +585,119 @@
     }) || null;
   }
 
+  function areHistoryRecipesEquivalent(previousRecipe, currentRecipe) {
+    var before = normalizeConflictRecipe(previousRecipe) || normalizeConflictRecipe({});
+    var after = normalizeConflictRecipe(currentRecipe) || normalizeConflictRecipe({});
+
+    return CONFLICT_GROUPS.every(function (group) {
+      return valuesEqual(getGroupValue(before, group), getGroupValue(after, group));
+    });
+  }
+
+  function getHistoryChangedFields(previousRecipe, currentRecipe) {
+    var before = normalizeConflictRecipe(previousRecipe) || normalizeConflictRecipe({});
+    var after = normalizeConflictRecipe(currentRecipe) || normalizeConflictRecipe({});
+
+    return CONFLICT_GROUPS.filter(function (group) {
+      return !valuesEqual(getGroupValue(before, group), getGroupValue(after, group));
+    }).map(function (group) {
+      return group.label;
+    });
+  }
+
+  function buildHistoryRecipeDiffs(previousData, currentData) {
+    var previousMap = new Map();
+    var currentMap = new Map();
+    var allIds = [];
+    var seenIds = new Set();
+
+    (previousData && Array.isArray(previousData.receitas) ? previousData.receitas : []).forEach(function (recipe) {
+      var id = String(recipe.id || "");
+
+      if (!id) {
+        return;
+      }
+
+      previousMap.set(id, recipe);
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        allIds.push(id);
+      }
+    });
+
+    (currentData && Array.isArray(currentData.receitas) ? currentData.receitas : []).forEach(function (recipe) {
+      var id = String(recipe.id || "");
+
+      if (!id) {
+        return;
+      }
+
+      currentMap.set(id, recipe);
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        allIds.push(id);
+      }
+    });
+
+    return allIds.map(function (id) {
+      var previousRecipe = previousMap.get(id) || null;
+      var currentRecipe = currentMap.get(id) || null;
+
+      if (!previousRecipe && currentRecipe) {
+        return {
+          id: id,
+          status: "added",
+          titulo: currentRecipe.titulo || "Receita sem titulo",
+          beforeRecipe: null,
+          afterRecipe: normalizeConflictRecipe(currentRecipe),
+          restoreRecipe: normalizeConflictRecipe(currentRecipe),
+          changedFields: []
+        };
+      }
+
+      if (previousRecipe && !currentRecipe) {
+        return {
+          id: id,
+          status: "removed",
+          titulo: previousRecipe.titulo || "Receita sem titulo",
+          beforeRecipe: normalizeConflictRecipe(previousRecipe),
+          afterRecipe: null,
+          restoreRecipe: normalizeConflictRecipe(previousRecipe),
+          changedFields: []
+        };
+      }
+
+      if (!previousRecipe || !currentRecipe || areHistoryRecipesEquivalent(previousRecipe, currentRecipe)) {
+        return null;
+      }
+
+      return {
+        id: id,
+        status: "updated",
+        titulo: currentRecipe.titulo || previousRecipe.titulo || "Receita sem titulo",
+        beforeRecipe: normalizeConflictRecipe(previousRecipe),
+        afterRecipe: normalizeConflictRecipe(currentRecipe),
+        restoreRecipe: normalizeConflictRecipe(currentRecipe),
+        changedFields: getHistoryChangedFields(previousRecipe, currentRecipe)
+      };
+    }).filter(Boolean).sort(function (a, b) {
+      var order = {
+        removed: 0,
+        updated: 1,
+        added: 2
+      };
+      var leftOrder = Object.prototype.hasOwnProperty.call(order, a.status) ? order[a.status] : 9;
+      var rightOrder = Object.prototype.hasOwnProperty.call(order, b.status) ? order[b.status] : 9;
+      var orderDiff = leftOrder - rightOrder;
+
+      if (orderDiff !== 0) {
+        return orderDiff;
+      }
+
+      return String(a.titulo || "").localeCompare(String(b.titulo || ""), "pt-BR");
+    });
+  }
+
   async function prepareRecipeForSave(localRecipe, baseSnapshot, remoteData, options) {
     var normalizedLocal = normalizeRecipe(localRecipe);
     var normalizedBase = normalizeConflictRecipe(baseSnapshot);
@@ -750,17 +863,94 @@
     };
   }
 
+  async function getRecipeHistory(limit) {
+    return window.GitHubSync.listarHistoricoReceitas(limit);
+  }
+
+  async function getRecipeHistoryDetail(commitSha, parentSha) {
+    var currentSnapshot = await window.GitHubSync.lerReceitasEmRef(commitSha);
+    var previousSnapshot = parentSha
+      ? await window.GitHubSync.lerReceitasEmRef(parentSha)
+      : {
+        data: {
+          receitas: [],
+          categorias: currentSnapshot.data && currentSnapshot.data.categorias
+            ? currentSnapshot.data.categorias
+            : defaultCategories()
+        },
+        sha: null
+      };
+
+    return {
+      commitSha: String(commitSha || ""),
+      parentSha: String(parentSha || ""),
+      changes: buildHistoryRecipeDiffs(previousSnapshot.data, currentSnapshot.data)
+    };
+  }
+
+  async function restoreRecipeFromHistory(recipeSnapshot, options) {
+    var normalizedHistoryRecipe = normalizeConflictRecipe(recipeSnapshot);
+    var current;
+    var restoredRecipe;
+    var nextData;
+    var commitMessage;
+
+    if (!normalizedHistoryRecipe || !normalizedHistoryRecipe.id) {
+      throw new Error("Nao foi possivel restaurar esta versao da receita.");
+    }
+
+    if (!window.GitHubSync.hasToken()) {
+      throw createStorageError("Configure um token GitHub para restaurar receitas do historico.", "missing_token");
+    }
+
+    current = await window.GitHubSync.lerReceitas();
+    restoredRecipe = normalizeRecipe(normalizedHistoryRecipe);
+    nextData = cloneData(current.data);
+    commitMessage = options && options.commitMessage
+      ? String(options.commitMessage)
+      : "Restaura receita: " + restoredRecipe.titulo;
+
+    ensureCategory(nextData, restoredRecipe);
+    upsertRecipe(nextData, restoredRecipe);
+    validateRepositorySize(nextData);
+
+    await window.GitHubSync.salvarComRetry(
+      nextData,
+      current.sha,
+      commitMessage,
+      function (latestData) {
+        ensureCategory(latestData, restoredRecipe);
+        upsertRecipe(latestData, restoredRecipe);
+        validateRepositorySize(latestData);
+        return latestData;
+      }
+    );
+
+    removeLocalRecipe(restoredRecipe.id);
+    invalidateCache();
+    noteSyncSuccess("github", "Receita restaurada a partir do historico.");
+
+    return Object.assign({}, restoredRecipe, {
+      _lastSyncedSnapshot: normalizeConflictRecipe(restoredRecipe)
+    });
+  }
+
   async function saveRecipe(recipe, options) {
     var baseSnapshot = recipe && recipe._lastSyncedSnapshot
       ? normalizeConflictRecipe(recipe._lastSyncedSnapshot)
       : null;
     var normalized = normalizeRecipe(recipe);
     var saveOptions = options || {};
+    var commitMessage;
 
     if (window.GitHubSync.hasToken()) {
       var current = await window.GitHubSync.lerReceitas();
       var recipeToPersist = await prepareRecipeForSave(normalized, baseSnapshot, current.data, saveOptions);
       var nextData = cloneData(current.data);
+
+      commitMessage = saveOptions.commitMessage
+        ? String(saveOptions.commitMessage)
+        : (recipe.id ? "Atualiza receita: " : "Adiciona receita: ") + recipeToPersist.titulo;
 
       ensureCategory(nextData, recipeToPersist);
       upsertRecipe(nextData, recipeToPersist);
@@ -769,7 +959,7 @@
       await window.GitHubSync.salvarComRetry(
         nextData,
         current.sha,
-        (recipe.id ? "Atualiza receita: " : "Adiciona receita: ") + recipeToPersist.titulo,
+        commitMessage,
         async function (latestData) {
           var retryRecipe = await prepareRecipeForSave(recipeToPersist, baseSnapshot, latestData, saveOptions);
           ensureCategory(latestData, retryRecipe);
@@ -900,8 +1090,11 @@
     getCategories: getCategories,
     getCategoryById: getCategoryById,
     getSpaceReport: getSpaceReport,
+    getRecipeHistory: getRecipeHistory,
+    getRecipeHistoryDetail: getRecipeHistoryDetail,
     getSyncStatus: getSyncStatus,
     saveRecipe: saveRecipe,
+    restoreRecipeFromHistory: restoreRecipeFromHistory,
     deleteRecipe: deleteRecipe,
     refreshSync: refreshSync,
     initDefaultData: initDefaultData,
@@ -921,7 +1114,10 @@
       buildConflictSignature: buildConflictSignature,
       resolveConflictChoice: resolveConflictChoice,
       prepareRecipeForSave: prepareRecipeForSave,
-      validateRepositorySize: validateRepositorySize
+      validateRepositorySize: validateRepositorySize,
+      areHistoryRecipesEquivalent: areHistoryRecipesEquivalent,
+      getHistoryChangedFields: getHistoryChangedFields,
+      buildHistoryRecipeDiffs: buildHistoryRecipeDiffs
     }
   };
 })();

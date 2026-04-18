@@ -127,6 +127,10 @@
   margin-top: var(--espaco-lg);
 }
 
+.historico-admin {
+  margin-top: var(--espaco-lg);
+}
+
 .barra-espaco {
   width: 100%;
   height: 14px;
@@ -191,6 +195,148 @@
 .diagnostico-lista {
   display: grid;
   gap: var(--espaco-sm);
+}
+
+.historico-shell {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr);
+  gap: var(--espaco-md);
+}
+
+.historico-lista,
+.historico-detalhe {
+  display: grid;
+  gap: var(--espaco-sm);
+  align-content: start;
+}
+
+.historico-vazio,
+.historico-resumo,
+.historico-mudanca {
+  padding: var(--espaco-md);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  background-color: var(--cor-luz-18);
+}
+
+.historico-commit {
+  display: grid;
+  gap: var(--espaco-xs);
+  width: 100%;
+  padding: var(--espaco-md);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  text-align: left;
+  background-color: var(--cor-luz-18);
+  transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+}
+
+.historico-commit.is-active,
+.historico-commit:hover,
+.historico-commit:focus-visible {
+  border-color: var(--cor-acento);
+  box-shadow: 0 12px 24px var(--cor-sombra);
+  transform: translateY(-1px);
+}
+
+.historico-commit strong,
+.historico-resumo strong,
+.historico-mudanca strong {
+  color: var(--cor-titulo);
+  font-family: var(--fonte-titulo);
+}
+
+.historico-commit span,
+.historico-mudanca-status,
+.historico-mudanca small,
+.historico-vazio small,
+.historico-resumo small {
+  color: var(--cor-acento);
+  font-family: var(--fonte-ui);
+  font-size: var(--texto-xs);
+}
+
+.historico-resumo p,
+.historico-vazio p,
+.historico-mudanca p,
+.historico-mudanca ul {
+  margin: 0;
+}
+
+.historico-mudanca {
+  display: grid;
+  gap: var(--espaco-sm);
+}
+
+.historico-mudanca-topo {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--espaco-md);
+  align-items: flex-start;
+}
+
+.historico-mudanca-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-xs);
+  padding: var(--espaco-xs) var(--espaco-sm);
+  border: 1px solid var(--cor-borda);
+  border-radius: 999px;
+  background-color: var(--cor-luz-20);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.historico-mudanca-status[data-status="removed"] {
+  color: var(--cor-acento);
+}
+
+.historico-mudanca-status[data-status="updated"] {
+  color: var(--cor-titulo);
+}
+
+.historico-mudanca-status[data-status="added"] {
+  color: var(--cor-verde-ervas);
+}
+
+.historico-mudanca-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--espaco-sm);
+}
+
+.historico-mudanca-coluna {
+  display: grid;
+  gap: var(--espaco-xs);
+  padding: var(--espaco-sm);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  background-color: var(--cor-papel);
+}
+
+.historico-mudanca-coluna span {
+  color: var(--cor-acento);
+  font-family: var(--fonte-ui);
+  font-size: var(--texto-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.historico-mudanca-campos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-xs);
+  padding: 0;
+  list-style: none;
+}
+
+.historico-mudanca-campos li {
+  padding: var(--espaco-xs) var(--espaco-sm);
+  border: 1px solid var(--cor-borda);
+  border-radius: 999px;
+  font-family: var(--fonte-ui);
+  font-size: var(--texto-xs);
+  background-color: var(--cor-luz-20);
 }
 
 .diagnostico-item {
@@ -656,7 +802,8 @@
   .form-grid,
   .token-wrapper,
   .repo-wrapper,
-  .espaco-item {
+  .espaco-item,
+  .historico-shell {
     grid-template-columns: 1fr;
   }
 }
@@ -671,7 +818,8 @@
   .bloco-topo,
   .config-github__topo,
   .banner-migracao,
-  .conflito-acoes {
+  .conflito-acoes,
+  .historico-mudanca-topo {
     flex-direction: column;
     align-items: stretch;
   }
@@ -704,6 +852,10 @@
   }
 
   .conflito-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .historico-mudanca-grid {
     grid-template-columns: 1fr;
   }
 

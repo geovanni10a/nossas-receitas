@@ -27,8 +27,10 @@
   <link rel="stylesheet" href="css/categorias.css">
 </head>
 <body class="pagina-capa">
+  <a class="skip-link" href="#conteudo-principal">Pular para o conteudo principal</a>
   <div class="fundo-livro"></div>
-  <main class="intro-livro" aria-live="polite">
+  <main class="intro-livro" id="conteudo-principal" tabindex="-1" aria-live="polite">
+    <h1 class="sr-only">Nossas Receitas</h1>
     <div class="intro-utilidades">
       <div id="sync-status-home" class="painel-status-shell"></div>
       <button class="botao-secundario botao-utilitario theme-toggle" id="toggle-theme-home" type="button">Tema automatico</button>

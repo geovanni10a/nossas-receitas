@@ -97,6 +97,57 @@ describe("GitHubSync", () => {
     expect(fetchMock.mock.calls[1][1].headers["If-None-Match"]).toBe("\"etag-1\"");
   });
 
+  it("lista commits recentes do arquivo de receitas", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse([
+      {
+        sha: "abc123456789",
+        commit: {
+          message: "Atualiza receita: Bolo\n\nDetalhes extras",
+          author: {
+            name: "Geovanni",
+            date: "2026-04-18T12:00:00.000Z"
+          }
+        },
+        parents: [{ sha: "parent987654321" }],
+        html_url: "https://github.com/geovanni10a/nossas-receitas/commit/abc123456789"
+      }
+    ]));
+
+    env.close();
+    env = createBrowserEnv({ fetch: fetchMock });
+    env.loadScript("js/github-sync.js");
+    sync = env.window.GitHubSync;
+
+    const entries = await sync.listarHistoricoReceitas(5);
+
+    expect(fetchMock.mock.calls[0][0]).toContain("/commits?path=");
+    expect(entries[0]).toMatchObject({
+      sha: "abc123456789",
+      shortSha: "abc1234",
+      message: "Atualiza receita: Bolo",
+      parentSha: "parent987654321",
+      authorName: "Geovanni"
+    });
+  });
+
+  it("carrega um snapshot de receitas em uma ref especifica", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(encodedPayload({
+      receitas: [{ id: "1", titulo: "Bolo antigo" }],
+      categorias: [{ id: "doces", nome: "Doces", icone: "ðŸ°", cor: "#C4845A" }]
+    }, "sha-ref")));
+
+    env.close();
+    env = createBrowserEnv({ fetch: fetchMock });
+    env.loadScript("js/github-sync.js");
+    sync = env.window.GitHubSync;
+
+    const snapshot = await sync.lerReceitasEmRef("commit-antigo");
+
+    expect(fetchMock.mock.calls[0][0]).toContain("ref=commit-antigo");
+    expect(snapshot.sha).toBe("sha-ref");
+    expect(snapshot.data.receitas[0].titulo).toBe("Bolo antigo");
+  });
+
   it("refaz o merge em conflito antes de tentar salvar de novo", async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ message: "sha mismatch" }, { status: 409 }))

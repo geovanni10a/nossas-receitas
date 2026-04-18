@@ -69,6 +69,102 @@ describe("NRStorage", () => {
     expect(merged.categorias.map((category) => category.id)).toEqual(["doces", "bebidas"]);
   });
 
+  it("monta diffs de historico por receita para adicionadas, atualizadas e removidas", () => {
+    const previousData = {
+      receitas: [
+        {
+          id: "1",
+          titulo: "Bolo base",
+          categoriaId: "doces",
+          categoriaNome: "Doces & Sobremesas",
+          tags: ["bolo"],
+          tempoPreparo: "20 min",
+          tempoForno: "",
+          porcoes: 8,
+          dificuldade: "Facil",
+          foto: "",
+          fotoThumb: "",
+          ingredientes: ["2 ovos"],
+          modoPreparo: ["Misture"],
+          dica: "Dica antiga",
+          criadoEm: "2026-04-18T10:00:00.000Z",
+          atualizadoEm: "2026-04-18T10:00:00.000Z"
+        },
+        {
+          id: "3",
+          titulo: "Receita removida",
+          categoriaId: "doces",
+          categoriaNome: "Doces & Sobremesas",
+          tags: [],
+          tempoPreparo: "10 min",
+          tempoForno: "",
+          porcoes: 4,
+          dificuldade: "Facil",
+          foto: "",
+          fotoThumb: "",
+          ingredientes: ["1 item"],
+          modoPreparo: ["Passo unico"],
+          dica: "",
+          criadoEm: "2026-04-18T09:00:00.000Z",
+          atualizadoEm: "2026-04-18T09:00:00.000Z"
+        }
+      ],
+      categorias: []
+    };
+    const currentData = {
+      receitas: [
+        {
+          id: "1",
+          titulo: "Bolo de laranja",
+          categoriaId: "doces",
+          categoriaNome: "Doces & Sobremesas",
+          tags: ["bolo"],
+          tempoPreparo: "20 min",
+          tempoForno: "",
+          porcoes: 8,
+          dificuldade: "Facil",
+          foto: "",
+          fotoThumb: "",
+          ingredientes: ["2 ovos"],
+          modoPreparo: ["Misture"],
+          dica: "Dica nova",
+          criadoEm: "2026-04-18T10:00:00.000Z",
+          atualizadoEm: "2026-04-18T11:00:00.000Z"
+        },
+        {
+          id: "2",
+          titulo: "Suco novo",
+          categoriaId: "bebidas",
+          categoriaNome: "Bebidas",
+          tags: [],
+          tempoPreparo: "5 min",
+          tempoForno: "",
+          porcoes: 2,
+          dificuldade: "Facil",
+          foto: "",
+          fotoThumb: "",
+          ingredientes: ["1 copo de agua"],
+          modoPreparo: ["Bata tudo"],
+          dica: "",
+          criadoEm: "2026-04-18T12:00:00.000Z",
+          atualizadoEm: "2026-04-18T12:00:00.000Z"
+        }
+      ],
+      categorias: []
+    };
+
+    const changes = storage.__private.buildHistoryRecipeDiffs(previousData, currentData);
+
+    expect(changes.map((change) => [change.id, change.status])).toEqual([
+      ["3", "removed"],
+      ["1", "updated"],
+      ["2", "added"]
+    ]);
+    expect(changes[1].changedFields).toEqual(["Titulo", "Dica"]);
+    expect(changes[0].restoreRecipe.titulo).toBe("Receita removida");
+    expect(changes[2].restoreRecipe.titulo).toBe("Suco novo");
+  });
+
   it("bloqueia payloads grandes demais para o repositorio", () => {
     const bigRecipe = {
       receitas: [{

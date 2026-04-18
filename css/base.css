@@ -144,6 +144,27 @@ a {
   border: 0;
 }
 
+.skip-link {
+  position: fixed;
+  top: var(--espaco-sm);
+  left: var(--espaco-sm);
+  z-index: 60;
+  padding: var(--espaco-sm) var(--espaco-md);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-md);
+  color: var(--cor-papel);
+  font-family: var(--fonte-ui);
+  background: linear-gradient(135deg, var(--cor-acento), var(--cor-acento-suave));
+  box-shadow: 0 12px 24px var(--cor-sombra);
+  transform: translateY(-140%);
+  opacity: 0;
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+  opacity: 1;
+}
+
 :focus-visible {
   outline: 2px solid var(--cor-acento);
   outline-offset: 3px;

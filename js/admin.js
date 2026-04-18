@@ -13,7 +13,10 @@
     lastDraftSignature: "",
     draftKey: "nr_draft_new",
     draftTimer: null,
-    isSavingRecipe: false
+    isSavingRecipe: false,
+    historyEntries: [],
+    historyDetails: {},
+    selectedHistoryCommit: ""
   };
 
   var PHOTO_LIMIT_BYTES = 150 * 1024;
@@ -230,6 +233,8 @@
 
     toast.hidden = !message;
     toast.textContent = message || "";
+    toast.setAttribute("role", isError ? "alert" : "status");
+    toast.setAttribute("aria-live", isError ? "assertive" : "polite");
     toast.classList.toggle("toast--erro", Boolean(isError));
   }
 
@@ -838,6 +843,352 @@
     return error.message || "Nao foi possivel validar o token.";
   }
 
+  function resetHistoryState() {
+    state.historyEntries = [];
+    state.historyDetails = {};
+    state.selectedHistoryCommit = "";
+  }
+
+  function getHistoryEntryBySha(commitSha) {
+    return state.historyEntries.find(function (entry) {
+      return entry.sha === commitSha;
+    }) || null;
+  }
+
+  function buildHistoryEmptyBlock(title, message) {
+    return h(
+      "div",
+      { className: "historico-vazio" },
+      h("strong", null, title),
+      h("p", null, message)
+    );
+  }
+
+  function renderHistorySummaryBlock(entry) {
+    var details = [
+      entry.authorName || "Autor desconhecido",
+      window.NRUtils.formatDateTime(entry.authoredAt),
+      entry.shortSha || String(entry.sha || "").slice(0, 7)
+    ].filter(Boolean).join(" | ");
+
+    return h(
+      "article",
+      { className: "historico-resumo" },
+      h("strong", null, entry.message || "Commit sem titulo"),
+      h(
+        "p",
+        null,
+        entry.messageBody || "Commit registrado no arquivo de receitas."
+      ),
+      h("small", null, details)
+    );
+  }
+
+  function getHistoryStatusLabel(status) {
+    if (status === "removed") {
+      return "Removida";
+    }
+
+    if (status === "added") {
+      return "Adicionada";
+    }
+
+    return "Atualizada";
+  }
+
+  function buildHistoryRecipeColumn(label, recipe, emptyMessage) {
+    if (!recipe) {
+      return h(
+        "div",
+        { className: "historico-mudanca-coluna" },
+        h("span", null, label),
+        h("p", null, emptyMessage)
+      );
+    }
+
+    return h(
+      "div",
+      { className: "historico-mudanca-coluna" },
+      h("span", null, label),
+      h("strong", null, recipe.titulo || "Receita sem titulo"),
+      h("p", null, recipe.categoriaNome || recipe.categoriaId || "Sem categoria"),
+      h(
+        "p",
+        null,
+        "Ingredientes: " + (Array.isArray(recipe.ingredientes) ? recipe.ingredientes.length : 0)
+          + " | Passos: " + (Array.isArray(recipe.modoPreparo) ? recipe.modoPreparo.length : 0)
+      ),
+      h("small", null, "Atualizado em " + window.NRUtils.formatDateTime(recipe.atualizadoEm || recipe.criadoEm))
+    );
+  }
+
+  async function handleHistoryRestore(change, entry) {
+    var recipeToRestore = change && change.restoreRecipe;
+    var recipeTitle = recipeToRestore && recipeToRestore.titulo ? recipeToRestore.titulo : "esta receita";
+
+    if (!recipeToRestore) {
+      showToast("Nao encontrei uma receita valida para restaurar neste commit.", true);
+      return;
+    }
+
+    if (!window.GitHubSync.hasToken()) {
+      showToast("Configure um token GitHub antes de restaurar uma receita do historico.", true);
+      return;
+    }
+
+    if (!window.confirm('Deseja restaurar "' + recipeTitle + '" a partir desta versao do historico?')) {
+      return;
+    }
+
+    showToast("Restaurando receita do historico...", false);
+
+    try {
+      await window.NRStorage.restoreRecipeFromHistory(recipeToRestore, {
+        commitMessage: "Restaura receita: " + recipeTitle + " (" + (entry.shortSha || String(entry.sha || "").slice(0, 7)) + ")"
+      });
+      await renderSpaceUsage();
+      await renderThumbnailMigration();
+      renderDiagnostics();
+      await loadHistory(true);
+      showToast("Receita restaurada do historico com sucesso.", false);
+    } catch (error) {
+      showToast(error.message || "Nao foi possivel restaurar a receita.", true);
+    }
+  }
+
+  function renderHistoryList() {
+    var list = byId("historico-commits");
+
+    if (!list) {
+      return;
+    }
+
+    list.replaceChildren();
+
+    if (!state.historyEntries.length) {
+      list.replaceChildren(buildHistoryEmptyBlock(
+        "Nenhum commit encontrado",
+        "Assim que o arquivo de receitas receber novas gravacoes, o historico aparecera aqui."
+      ));
+      return;
+    }
+
+    state.historyEntries.forEach(function (entry) {
+      var isActive = state.selectedHistoryCommit === entry.sha;
+      var button = h(
+        "button",
+        {
+          className: "historico-commit" + (isActive ? " is-active" : ""),
+          type: "button",
+          "aria-pressed": isActive ? "true" : "false",
+          onClick: function () {
+            loadHistoryDetail(entry.sha);
+          }
+        },
+        h("strong", null, entry.message || "Commit sem titulo"),
+        h("span", null, (entry.authorName || "Autor desconhecido") + " | " + window.NRUtils.formatDateTime(entry.authoredAt)),
+        h("small", null, entry.shortSha || String(entry.sha || "").slice(0, 7))
+      );
+
+      list.appendChild(button);
+    });
+  }
+
+  function renderHistoryDetailPlaceholder(title, message) {
+    var detail = byId("historico-detalhe");
+
+    if (!detail) {
+      return;
+    }
+
+    detail.replaceChildren(buildHistoryEmptyBlock(title, message));
+  }
+
+  function renderHistoryDetail(detailData, entry) {
+    var detail = byId("historico-detalhe");
+
+    if (!detail) {
+      return;
+    }
+
+    detail.replaceChildren();
+
+    if (!entry) {
+      detail.replaceChildren(buildHistoryEmptyBlock(
+        "Escolha um commit",
+        "Selecione uma versao na coluna ao lado para ver as receitas alteradas."
+      ));
+      return;
+    }
+
+    if (!detailData || !Array.isArray(detailData.changes) || !detailData.changes.length) {
+      detail.replaceChildren(
+        renderHistorySummaryBlock(entry),
+        buildHistoryEmptyBlock(
+          "Nenhuma receita mudou nesta versao",
+          "O commit nao alterou objetos de receita comparando com a versao anterior do arquivo."
+        )
+      );
+      return;
+    }
+
+    detail.replaceChildren(renderHistorySummaryBlock(entry));
+
+    detailData.changes.forEach(function (change) {
+      var description;
+
+      if (change.status === "removed") {
+        description = "Esta receita saiu do arquivo nesta versao.";
+      } else if (change.status === "added") {
+        description = "Esta receita entrou no livro neste commit.";
+      } else {
+        description = "Campos alterados nesta versao:";
+      }
+
+      detail.appendChild(
+        h(
+          "article",
+          { className: "historico-mudanca" },
+          h(
+            "div",
+            { className: "historico-mudanca-topo" },
+            h(
+              "div",
+              null,
+              h("strong", null, change.titulo || "Receita sem titulo"),
+              h("p", null, description)
+            ),
+            h(
+              "span",
+              {
+                className: "historico-mudanca-status",
+                dataset: { status: change.status }
+              },
+              getHistoryStatusLabel(change.status)
+            )
+          ),
+          change.status === "updated" && change.changedFields && change.changedFields.length
+            ? h(
+              "ul",
+              { className: "historico-mudanca-campos" },
+              change.changedFields.map(function (fieldLabel) {
+                return h("li", null, fieldLabel);
+              })
+            )
+            : null,
+          h(
+            "div",
+            { className: "historico-mudanca-grid" },
+            buildHistoryRecipeColumn(
+              "Antes do commit",
+              change.beforeRecipe,
+              change.status === "added"
+                ? "A receita ainda nao existia antes deste commit."
+                : "Sem registro desta versao anterior."
+            ),
+            buildHistoryRecipeColumn(
+              "Resultado do commit",
+              change.afterRecipe,
+              change.status === "removed"
+                ? "O commit removeu esta receita do arquivo."
+                : "Sem registro desta versao."
+            )
+          ),
+          h(
+            "div",
+            { className: "conflito-acoes" },
+            h(
+              "button",
+              {
+                className: "botao-secundario",
+                type: "button",
+                disabled: !window.GitHubSync.hasToken(),
+                onClick: function () {
+                  handleHistoryRestore(change, entry);
+                }
+              },
+              window.GitHubSync.hasToken() ? "Restaurar esta receita" : "Configure um token para restaurar"
+            )
+          )
+        )
+      );
+    });
+  }
+
+  async function loadHistoryDetail(commitSha, skipFocus) {
+    var entry = getHistoryEntryBySha(commitSha);
+    var detailShell = byId("historico-detalhe");
+
+    if (!entry || !detailShell) {
+      return;
+    }
+
+    state.selectedHistoryCommit = commitSha;
+    renderHistoryList();
+    renderHistoryDetailPlaceholder("Carregando versao...", "Montando o diff das receitas deste commit.");
+
+    try {
+      if (!state.historyDetails[commitSha]) {
+        state.historyDetails[commitSha] = await window.NRStorage.getRecipeHistoryDetail(commitSha, entry.parentSha);
+      }
+
+      renderHistoryDetail(state.historyDetails[commitSha], entry);
+
+      if (!skipFocus) {
+        detailShell.focus();
+      }
+    } catch (error) {
+      renderHistoryDetailPlaceholder("Nao foi possivel abrir esta versao", describeGitHubError(error));
+    }
+  }
+
+  async function loadHistory(forceRefresh) {
+    var list = byId("historico-commits");
+
+    if (!list || !window.NRStorage) {
+      return;
+    }
+
+    if (forceRefresh) {
+      resetHistoryState();
+    }
+
+    list.replaceChildren(buildHistoryEmptyBlock(
+      "Carregando historico...",
+      "Buscando os commits mais recentes do arquivo de receitas."
+    ));
+    renderHistoryDetailPlaceholder("Carregando versao...", "Aguarde um instante enquanto o painel monta o historico.");
+
+    try {
+      state.historyEntries = await window.NRStorage.getRecipeHistory(20);
+      renderHistoryList();
+
+      if (!state.historyEntries.length) {
+        renderHistoryDetailPlaceholder(
+          "Historico vazio",
+          "Ainda nao ha commits suficientes no arquivo remoto para exibir o historico."
+        );
+        return;
+      }
+
+      if (!state.selectedHistoryCommit || !getHistoryEntryBySha(state.selectedHistoryCommit)) {
+        state.selectedHistoryCommit = state.historyEntries[0].sha;
+      }
+
+      await loadHistoryDetail(state.selectedHistoryCommit, true);
+    } catch (error) {
+      resetHistoryState();
+      list.replaceChildren(buildHistoryEmptyBlock(
+        "Nao foi possivel carregar o historico",
+        describeGitHubError(error)
+      ));
+      renderHistoryDetailPlaceholder(
+        "Historico indisponivel",
+        "Revise owner, repositorio, branch e token antes de tentar novamente."
+      );
+    }
+  }
+
   function summarizeConflictValue(conflictKey, value) {
     if (conflictKey === "receita") {
       return String(value || "Sem detalhes");
@@ -875,6 +1226,18 @@
     );
   }
 
+  function getFocusableElements(container) {
+    if (!container) {
+      return [];
+    }
+
+    return Array.prototype.slice.call(container.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter(function (element) {
+      return !element.hidden && element.getAttribute("aria-hidden") !== "true";
+    });
+  }
+
   function openConflictModal(conflict) {
     var shell = byId("conflito-modal-shell");
 
@@ -885,11 +1248,14 @@
     return new Promise(function (resolve) {
       var previousActive = document.activeElement;
       var titleId = "conflito-modal-titulo";
+      var descriptionId = "conflito-modal-descricao";
+      var noteId = "conflito-modal-nota";
       var message = conflict.deletedRemotely
         ? "A receita foi apagada no GitHub enquanto voce ainda editava neste dispositivo."
         : "A receita mudou em outro dispositivo. As mudancas sem conflito seguem preservadas automaticamente; escolha qual lado vence nos campos abaixo.";
       var localLabel = conflict.deletedRemotely ? "Restaurar minha versao" : "Manter minhas mudancas";
       var remoteLabel = conflict.deletedRemotely ? "Aceitar exclusao remota" : "Usar versao do GitHub";
+      var dialog = null;
       var cleanup;
 
       function finish(result) {
@@ -909,12 +1275,105 @@
         if (event.key === "Escape") {
           event.preventDefault();
           finish({ choice: "cancel" });
+          return;
+        }
+
+        if (event.key === "Tab") {
+          var focusable = getFocusableElements(dialog);
+
+          if (!focusable.length) {
+            return;
+          }
+
+          var first = focusable[0];
+          var last = focusable[focusable.length - 1];
+
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+            return;
+          }
+
+          if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
         }
       }
 
       cleanup = finish;
       shell.hidden = false;
       document.body.classList.add("modal-open");
+
+      dialog = h(
+        "section",
+        {
+          className: "modal-card pagina-textura",
+          role: "dialog",
+          "aria-modal": "true",
+          "aria-labelledby": titleId,
+          "aria-describedby": descriptionId + " " + noteId
+        },
+        h("p", { className: "sobretitulo" }, "Conflito de edicao"),
+        h("h2", { id: titleId }, conflict.deletedRemotely ? "Esta receita foi removida no GitHub" : "Encontramos alteracoes concorrentes"),
+        h("p", { className: "conflito-intro", id: descriptionId }, message),
+        h("p", { className: "conflito-nota", id: noteId }, "Seu escolhido vence apenas nos campos em disputa. O resto continua mesclado automaticamente."),
+        h(
+          "div",
+          { className: "conflito-lista" },
+          conflict.conflicts.map(function (item) {
+            return h(
+              "article",
+              { className: "conflito-item" },
+              h("strong", null, item.label),
+              h(
+                "div",
+                { className: "conflito-grid" },
+                buildConflictColumn("Antes", summarizeConflictValue(item.key, item.base)),
+                buildConflictColumn("Sua edicao", summarizeConflictValue(item.key, item.local)),
+                buildConflictColumn("GitHub", summarizeConflictValue(item.key, item.remote))
+              )
+            );
+          })
+        ),
+        h(
+          "div",
+          { className: "conflito-acoes" },
+          h(
+            "button",
+            {
+              className: "botao-secundario",
+              type: "button",
+              onClick: function () {
+                cleanup({ choice: "cancel" });
+              }
+            },
+            "Cancelar"
+          ),
+          h(
+            "button",
+            {
+              className: "botao-secundario",
+              type: "button",
+              onClick: function () {
+                cleanup({ choice: "remote" });
+              }
+            },
+            remoteLabel
+          ),
+          h(
+            "button",
+            {
+              className: "botao-primario",
+              type: "button",
+              onClick: function () {
+                cleanup({ choice: "local" });
+              }
+            },
+            localLabel
+          )
+        )
+      );
 
       shell.replaceChildren(
         h("button", {
@@ -925,74 +1384,7 @@
             cleanup({ choice: "cancel" });
           }
         }),
-        h(
-          "section",
-          {
-            className: "modal-card pagina-textura",
-            role: "dialog",
-            "aria-modal": "true",
-            "aria-labelledby": titleId
-          },
-          h("p", { className: "sobretitulo" }, "Conflito de edicao"),
-          h("h2", { id: titleId }, conflict.deletedRemotely ? "Esta receita foi removida no GitHub" : "Encontramos alteracoes concorrentes"),
-          h("p", { className: "conflito-intro" }, message),
-          h("p", { className: "conflito-nota" }, "Seu escolhido vence apenas nos campos em disputa. O resto continua mesclado automaticamente."),
-          h(
-            "div",
-            { className: "conflito-lista" },
-            conflict.conflicts.map(function (item) {
-              return h(
-                "article",
-                { className: "conflito-item" },
-                h("strong", null, item.label),
-                h(
-                  "div",
-                  { className: "conflito-grid" },
-                  buildConflictColumn("Antes", summarizeConflictValue(item.key, item.base)),
-                  buildConflictColumn("Sua edicao", summarizeConflictValue(item.key, item.local)),
-                  buildConflictColumn("GitHub", summarizeConflictValue(item.key, item.remote))
-                )
-              );
-            })
-          ),
-          h(
-            "div",
-            { className: "conflito-acoes" },
-            h(
-              "button",
-              {
-                className: "botao-secundario",
-                type: "button",
-                onClick: function () {
-                  cleanup({ choice: "cancel" });
-                }
-              },
-              "Cancelar"
-            ),
-            h(
-              "button",
-              {
-                className: "botao-secundario",
-                type: "button",
-                onClick: function () {
-                  cleanup({ choice: "remote" });
-                }
-              },
-              remoteLabel
-            ),
-            h(
-              "button",
-              {
-                className: "botao-primario",
-                type: "button",
-                onClick: function () {
-                  cleanup({ choice: "local" });
-                }
-              },
-              localLabel
-            )
-          )
-        )
+        dialog
       );
 
       document.addEventListener("keydown", handleKeydown);
@@ -1156,6 +1548,7 @@
     await renderSpaceUsage();
     await renderThumbnailMigration();
     renderDiagnostics();
+    await loadHistory(true);
     showToast(recipes.length === 1 ? "Miniatura antiga gerada com sucesso." : "Miniaturas antigas geradas com sucesso.", false);
   }
 
@@ -1269,6 +1662,7 @@
 
       await renderSpaceUsage();
       await renderThumbnailMigration();
+      await loadHistory(true);
       showToast("Foto recomprimida com reducao de " + reduction + "%.", false);
     } catch (error) {
       showToast(error.message || "Nao foi possivel recomprimir a foto.", true);
@@ -1364,6 +1758,7 @@
       await window.NRStorage.refreshSync();
       await renderSpaceUsage();
       await renderThumbnailMigration();
+      await loadHistory(true);
 
       if (window.Migration) {
         window.Migration.verificarEMigrar(byId("container-migracao"));
@@ -1382,6 +1777,7 @@
     byId("container-migracao").replaceChildren();
     await renderSpaceUsage();
     await renderThumbnailMigration();
+    await loadHistory(true);
   }
 
   function mountSharedControls() {
@@ -1433,11 +1829,25 @@
       window.NRDiagnostics.clear();
       renderDiagnostics();
     });
+    byId("btn-atualizar-historico").addEventListener("click", function () {
+      loadHistory(true).catch(function (error) {
+        showToast(error.message || "Nao foi possivel atualizar o historico.", true);
+      });
+    });
 
     ["repo-owner", "repo-name", "repo-branch"].forEach(function (id) {
       byId(id).addEventListener("change", function () {
         persistRepoFields();
         renderWizardSummary(null);
+        resetHistoryState();
+        byId("historico-commits").replaceChildren(buildHistoryEmptyBlock(
+          "Historico aguardando confirmacao",
+          "Valide o owner, repositorio e branch para recarregar o historico deste destino."
+        ));
+        renderHistoryDetailPlaceholder(
+          "Revise o destino do repositorio",
+          "Depois de confirmar o novo owner, repositorio e branch, clique em atualizar historico."
+        );
       });
     });
 
@@ -1540,6 +1950,7 @@
     await renderSpaceUsage();
     await renderThumbnailMigration();
     renderDiagnostics();
+    await loadHistory(true);
 
     if (window.GitHubSync.hasToken() && window.Migration) {
       window.Migration.verificarEMigrar(byId("container-migracao"));

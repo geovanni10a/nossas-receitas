@@ -217,7 +217,7 @@
     };
 
     var buildSearchMessage = function (message) {
-      return h("div", { className: "resultado-vazio" }, message);
+      return h("div", { className: "resultado-vazio", role: "status" }, message);
     };
 
     var buildSearchResults = function (results) {
@@ -226,7 +226,8 @@
           "a",
           {
             className: "resultado-busca",
-            href: "livro.html?receita=" + encodeURIComponent(item.id)
+            href: "livro.html?receita=" + encodeURIComponent(item.id),
+            "aria-label": item.titulo + " na categoria " + item.categoria
           },
           h("strong", null, item.titulo),
           h("span", null, item.categoria)

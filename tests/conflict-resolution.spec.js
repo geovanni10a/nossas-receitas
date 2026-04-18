@@ -1,35 +1,38 @@
 const { test, expect } = require("@playwright/test");
 const { apiPattern, buildRemotePayload, categories } = require("./helpers");
+const historyPattern = "https://api.github.com/repos/**/commits**";
 
 function decodeRecipesFromRequest(route) {
   const body = JSON.parse(route.request().postData() || "{}");
   return JSON.parse(Buffer.from(body.content, "base64").toString("utf8"));
 }
 
-test("admin abre o modal de conflito e reaproveita a escolha no merge em 3 vias", async ({ page }) => {
-  const baseRecipe = {
-    id: "receita-conflito",
-    titulo: "Bolo base",
-    categoriaId: categories[0].id,
-    categoriaNome: categories[0].nome,
-    tags: ["bolo"],
-    tempoPreparo: "30 min",
-    tempoForno: "",
-    porcoes: 8,
-    dificuldade: "Facil",
-    foto: "",
-    fotoThumb: "",
-    ingredientes: ["2 ovos"],
-    modoPreparo: ["Misture tudo"],
-    dica: "Dica base",
-    criadoEm: "2026-04-18T10:30:00.000Z",
-    atualizadoEm: "2026-04-18T10:30:00.000Z"
-  };
-  const remoteEditedRecipe = Object.assign({}, baseRecipe, {
-    titulo: "Bolo da Maria",
-    tempoPreparo: "45 min",
-    atualizadoEm: "2026-04-18T11:30:00.000Z"
-  });
+const baseRecipe = {
+  id: "receita-conflito",
+  titulo: "Bolo base",
+  categoriaId: categories[0].id,
+  categoriaNome: categories[0].nome,
+  tags: ["bolo"],
+  tempoPreparo: "30 min",
+  tempoForno: "",
+  porcoes: 8,
+  dificuldade: "Facil",
+  foto: "",
+  fotoThumb: "",
+  ingredientes: ["2 ovos"],
+  modoPreparo: ["Misture tudo"],
+  dica: "Dica base",
+  criadoEm: "2026-04-18T10:30:00.000Z",
+  atualizadoEm: "2026-04-18T10:30:00.000Z"
+};
+
+const remoteEditedRecipe = Object.assign({}, baseRecipe, {
+  titulo: "Bolo da Maria",
+  tempoPreparo: "45 min",
+  atualizadoEm: "2026-04-18T11:30:00.000Z"
+});
+
+async function setupConflictRoute(page) {
   let remoteState = buildRemotePayload({
     receitas: [baseRecipe]
   });
@@ -38,6 +41,14 @@ test("admin abre o modal de conflito e reaproveita a escolha no merge em 3 vias"
 
   await page.addInitScript(() => {
     window.localStorage.setItem("nr_github_token", "ghp_test_conflict");
+  });
+
+  await page.route(historyPattern, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json; charset=utf-8",
+      body: JSON.stringify([])
+    });
   });
 
   await page.route(apiPattern, async (route) => {
@@ -81,6 +92,16 @@ test("admin abre o modal de conflito e reaproveita a escolha no merge em 3 vias"
     });
   });
 
+  return {
+    getFinalSavedState() {
+      return finalSavedState;
+    }
+  };
+}
+
+test("admin abre o modal de conflito e reaproveita a escolha no merge em 3 vias", async ({ page }) => {
+  const state = await setupConflictRoute(page);
+
   await page.goto("/admin.html?id=receita-conflito");
   await page.fill("#titulo", "Bolo da Geovanni");
   await page.fill("#dica", "Dica local");
@@ -97,9 +118,37 @@ test("admin abre o modal de conflito e reaproveita a escolha no merge em 3 vias"
   await page.click("#conflito-modal-shell .botao-primario");
   await expect(page.locator("#toast")).toContainText("Receita sincronizada com sucesso");
 
+  const finalSavedState = state.getFinalSavedState();
+
   expect(finalSavedState).not.toBeNull();
   expect(finalSavedState.receitas).toHaveLength(1);
   expect(finalSavedState.receitas[0].titulo).toBe("Bolo da Geovanni");
   expect(finalSavedState.receitas[0].tempoPreparo).toBe("45 min");
   expect(finalSavedState.receitas[0].dica).toBe("Dica local");
+});
+
+test("modal de conflito prende o foco e fecha com Escape", async ({ page }) => {
+  await setupConflictRoute(page);
+
+  await page.goto("/admin.html?id=receita-conflito");
+  await page.fill("#titulo", "Bolo da Geovanni");
+  await page.fill("#dica", "Dica local");
+  await page.click("#btn-salvar-receita");
+
+  const modal = page.locator("#conflito-modal-shell");
+  const primaryButton = modal.locator(".botao-primario");
+  const cancelButton = modal.locator(".botao-secundario").first();
+
+  await expect(modal).toBeVisible();
+  await expect(primaryButton).toBeFocused();
+
+  await page.keyboard.press("Tab");
+  await expect(cancelButton).toBeFocused();
+
+  await page.keyboard.press("Shift+Tab");
+  await expect(primaryButton).toBeFocused();
+
+  await page.keyboard.press("Escape");
+  await expect(modal).toBeHidden();
+  await expect(page.locator("#toast")).toContainText("Salvamento pausado");
 });

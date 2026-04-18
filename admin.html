@@ -26,8 +26,9 @@
   <link rel="stylesheet" href="css/admin.css">
 </head>
 <body class="pagina-admin">
+  <a class="skip-link" href="#conteudo-principal">Pular para o conteudo principal</a>
   <div class="fundo-livro"></div>
-  <main class="admin-layout">
+  <main class="admin-layout" id="conteudo-principal" tabindex="-1">
     <header class="admin-topo">
       <div>
         <p class="sobretitulo">Painel do caderno</p>
@@ -136,6 +137,21 @@
       <div class="diagnostico-lista" id="diagnostico-lista"></div>
     </section>
 
+    <section class="card-admin historico-admin" id="secao-historico">
+      <div class="config-github__topo">
+        <div>
+          <p class="sobretitulo">Historico</p>
+          <h2>Versoes recentes das receitas</h2>
+          <p>Veja os ultimos commits do arquivo de receitas, descubra o que mudou em cada versao e restaure apenas a receita desejada.</p>
+        </div>
+        <button class="botao-secundario" type="button" id="btn-atualizar-historico">Atualizar historico</button>
+      </div>
+      <div class="historico-shell">
+        <div class="historico-lista" id="historico-commits" aria-live="polite"></div>
+        <div class="historico-detalhe" id="historico-detalhe" tabindex="-1" aria-live="polite"></div>
+      </div>
+    </section>
+
     <div id="container-migracao"></div>
 
     <div class="modal-shell" id="conflito-modal-shell" hidden></div>
@@ -240,7 +256,7 @@
       </div>
 
       <footer class="rodape-form">
-        <div class="toast" id="toast" hidden></div>
+        <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
         <button class="botao-primario" id="btn-salvar-receita" type="submit">Salvar receita</button>
       </footer>
     </form>
