@@ -187,6 +187,7 @@
       ingredientes: Array.isArray(recipe.ingredientes) ? recipe.ingredientes.filter(Boolean) : [],
       modoPreparo: Array.isArray(recipe.modoPreparo) ? recipe.modoPreparo.filter(Boolean) : [],
       dica: String(recipe.dica || "").trim(),
+      videoUrl: String(recipe.videoUrl || "").trim(),
       criadoEm: recipe && recipe.criadoEm ? String(recipe.criadoEm) : now,
       atualizadoEm: now
     };

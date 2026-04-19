@@ -22,6 +22,7 @@
       ingredientes: Array.isArray(row.ingredientes) ? row.ingredientes : [],
       modoPreparo: Array.isArray(row.modo_preparo) ? row.modo_preparo : [],
       dica: row.dica || "",
+      videoUrl: row.video_url || "",
       criadoEm: row.criado_em || "",
       atualizadoEm: row.atualizado_em || ""
     };
@@ -43,6 +44,7 @@
       ingredientes: Array.isArray(recipe.ingredientes) ? recipe.ingredientes : [],
       modo_preparo: Array.isArray(recipe.modoPreparo) ? recipe.modoPreparo : [],
       dica: recipe.dica || "",
+      video_url: recipe.videoUrl || "",
       criado_em: recipe.criadoEm || new Date().toISOString(),
       atualizado_em: new Date().toISOString()
     };

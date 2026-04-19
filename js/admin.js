@@ -87,6 +87,7 @@
       porcoes: "",
       dificuldade: "Facil",
       dica: "",
+      videoUrl: "",
       tags: [],
       foto: "",
       fotoThumb: "",
@@ -121,6 +122,7 @@
       porcoes: byId("porcoes").value.trim(),
       dificuldade: normalizeDifficulty(byId("dificuldade").value),
       dica: byId("dica").value.trim(),
+      videoUrl: byId("video-url").value.trim(),
       tags: state.tags.slice(),
       foto: state.photoData,
       fotoThumb: state.photoThumbData,
@@ -143,6 +145,7 @@
       || data.tempoForno
       || data.porcoes
       || data.dica
+      || data.videoUrl
       || data.foto
       || data.fotoThumb
       || data.tags.length
@@ -658,7 +661,8 @@
       fotoThumb: state.photoThumbData,
       ingredientes: snapshot.ingredientes,
       modoPreparo: snapshot.modoPreparo,
-      dica: snapshot.dica
+      dica: snapshot.dica,
+      videoUrl: snapshot.videoUrl
     };
   }
 
@@ -687,6 +691,7 @@
     byId("porcoes").value = data.porcoes;
     byId("dificuldade").value = normalizeDifficulty(data.dificuldade);
     byId("dica").value = data.dica;
+    byId("video-url").value = data.videoUrl || "";
 
     state.tags = data.tags.slice();
     state.photoData = data.foto || "";
@@ -729,6 +734,7 @@
       porcoes: recipe.porcoes ? String(recipe.porcoes) : "",
       dificuldade: normalizeDifficulty(recipe.dificuldade),
       dica: recipe.dica || "",
+      videoUrl: recipe.videoUrl || "",
       tags: Array.isArray(recipe.tags) ? recipe.tags.slice() : [],
       foto: recipe.foto || "",
       fotoThumb: recipe.fotoThumb || "",

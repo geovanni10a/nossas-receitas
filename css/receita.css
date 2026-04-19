@@ -167,6 +167,27 @@
   background-color: var(--cor-luz-18);
 }
 
+.receita-video {
+  display: grid;
+  gap: var(--espaco-sm);
+  padding: var(--espaco-md);
+  border-radius: var(--raio-md);
+  border: 1px solid var(--cor-borda);
+  background-color: var(--cor-luz-14);
+}
+
+.receita-video strong {
+  font-family: var(--fonte-ui);
+  font-size: var(--texto-sm);
+  color: var(--cor-titulo);
+}
+
+.receita-video-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-sm);
+}
+
 .modo-cozinha-banner {
   display: grid;
   gap: var(--espaco-xs);

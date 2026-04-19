@@ -30,9 +30,13 @@ create table if not exists public.receitas (
   ingredientes   jsonb default '[]'::jsonb,
   modo_preparo   jsonb default '[]'::jsonb,
   dica           text default '',
+  video_url      text default '',
   criado_em      timestamptz default now(),
   atualizado_em  timestamptz default now()
 );
+
+-- Migração para tabelas já existentes (idempotente)
+alter table public.receitas add column if not exists video_url text default '';
 
 create index if not exists receitas_categoria_idx on public.receitas(categoria_id);
 create index if not exists receitas_atualizado_idx on public.receitas(atualizado_em desc);

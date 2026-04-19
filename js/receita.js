@@ -403,6 +403,35 @@
             h("strong", null, "Dica:"),
             " ",
             recipe.dica
+          ) : null,
+          recipe.videoUrl ? h(
+            "div",
+            { className: "receita-video" },
+            h("strong", null, "Video do preparo:"),
+            h(
+              "div",
+              { className: "receita-video-acoes" },
+              h(
+                "a",
+                {
+                  className: "botao-secundario",
+                  href: recipe.videoUrl,
+                  target: "_blank",
+                  rel: "noopener noreferrer"
+                },
+                "Abrir no YouTube"
+              ),
+              h(
+                "button",
+                {
+                  type: "button",
+                  className: "botao-secundario",
+                  "data-copy-video": recipe.videoUrl,
+                  "aria-live": "polite"
+                },
+                "Copiar link"
+              )
+            )
           ) : null
         ),
         h(
@@ -457,6 +486,48 @@
       button.addEventListener("click", function () {
         button.classList.toggle("is-done");
         button.setAttribute("aria-pressed", button.classList.contains("is-done") ? "true" : "false");
+      });
+    });
+
+    container.querySelectorAll("[data-copy-video]").forEach(function (button) {
+      var originalLabel = button.textContent;
+
+      button.addEventListener("click", function () {
+        var link = button.getAttribute("data-copy-video") || "";
+        if (!link) {
+          return;
+        }
+
+        var afterCopy = function (ok) {
+          button.textContent = ok ? "Link copiado!" : "Nao foi possivel copiar";
+          window.setTimeout(function () {
+            button.textContent = originalLabel;
+          }, 1800);
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(link).then(function () {
+            afterCopy(true);
+          }).catch(function () {
+            afterCopy(false);
+          });
+          return;
+        }
+
+        try {
+          var temp = document.createElement("textarea");
+          temp.value = link;
+          temp.setAttribute("readonly", "");
+          temp.style.position = "fixed";
+          temp.style.opacity = "0";
+          document.body.appendChild(temp);
+          temp.select();
+          var ok = document.execCommand("copy");
+          document.body.removeChild(temp);
+          afterCopy(ok);
+        } catch (error) {
+          afterCopy(false);
+        }
       });
     });
 
