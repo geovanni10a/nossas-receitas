@@ -1,16 +1,18 @@
 const { test, expect } = require("@playwright/test");
-const { buildRemotePayload, categories, mockGitHubContent } = require("./helpers");
+const { categories, mockSupabase } = require("./helpers");
 
 const offlineRecipe = {
   id: "bolo-offline",
   titulo: "Bolo salvo para modo offline",
   categoriaId: "doces",
+  categoriaNome: categories[0].nome,
   tags: ["offline", "pwa"],
   tempoPreparo: "35 min",
   tempoForno: "40 min",
   porcoes: 8,
   dificuldade: "Facil",
   foto: "",
+  fotoThumb: "",
   ingredientes: ["2 ovos", "1 xicara de farinha"],
   modoPreparo: ["Misture tudo", "Asse ate dourar"],
   dica: "Receita criada para testar o cache offline.",
@@ -29,11 +31,7 @@ async function waitForServiceWorker(page) {
 }
 
 test("livro continua acessivel offline apos a primeira visita", async ({ page }) => {
-  await mockGitHubContent(page, {
-    payload: buildRemotePayload({
-      receitas: [offlineRecipe]
-    })
-  });
+  await mockSupabase(page, { recipes: [offlineRecipe], categories });
 
   await page.goto("/livro.html?categoria=doces");
   await expect(page.locator(".item-lista h3")).toContainText("Bolo salvo para modo offline");
@@ -47,12 +45,7 @@ test("livro continua acessivel offline apos a primeira visita", async ({ page })
 });
 
 test("service worker entrega a tela offline para navegacao fora do cache", async ({ page }) => {
-  await mockGitHubContent(page, {
-    payload: buildRemotePayload({
-      receitas: [offlineRecipe],
-      categorias: categories
-    })
-  });
+  await mockSupabase(page, { recipes: [offlineRecipe], categories });
 
   await page.goto("/index.html");
   await waitForServiceWorker(page);

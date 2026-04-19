@@ -1,65 +1,68 @@
 # Nossas Receitas
 
-Site estatico em HTML, CSS e JavaScript puro com visual de livro de receitas antigo, leitura publica pelo GitHub Pages e sincronizacao opcional via GitHub Contents API.
+Livro de receitas da familia com visual de caderno antigo. HTML, CSS e JavaScript puro, sem build step. O site e hospedado no GitHub Pages e as receitas ficam no Supabase, entao qualquer dispositivo com o link consulta e edita sem precisar configurar nada.
 
-## O que entrou nesta iteracao
+- **Site publicado:** https://geovanni10a.github.io/nossas-receitas/
+- **Repositorio:** https://github.com/geovanni10a/nossas-receitas
+- **Backend:** projeto Supabase `rurqwnwomrssnhxhsgfh`
 
-- CSP ativa nas 3 paginas, favicon e imagem OpenGraph.
-- Badge global de sincronizacao com estados `sincronizado`, `offline`, `sem-token` e `erro`, incluindo botao `Atualizar agora`.
-- Wizard de configuracao do GitHub no admin, com validacao imediata de owner, repositorio, branch e total de receitas.
-- Deteccao automatica de `owner/repo` em GitHub Pages, com override manual para forks.
-- Preferencia de movimento com modo automatico, reduzido ou completo.
-- PWA instalavel com `manifest.webmanifest`, service worker, cache do app shell e fallback offline estilizado.
-- Resolucao assistida de conflito em 3 vias no admin quando a mesma receita muda em dois dispositivos.
-- Painel de uso de espaco com barra de progresso, alertas em thresholds e top-5 receitas mais pesadas.
-- Botao para recomprimir a foto de receitas pesadas direto no admin.
-- Suite Playwright expandida cobrindo XSS, badge de sync, wizard e armazenamento.
+## Principais recursos
+
+- Capa, indice, 4 categorias, folha dupla com rolagem interna e transicao de pagina.
+- Busca unica "Pesquisar" no header, filtrando titulo e tags.
+- Modo claro, modo escuro automatico (`prefers-color-scheme`) e toggle manual.
+- Favoritos locais e modo "cozinha agora" com Wake Lock para manter a tela ligada.
+- Botao "Adicionar receita" abrindo formulario com upload de foto, auto-save de rascunho e pre-selecao de categoria.
+- PWA instalavel com cache offline do shell, tela `offline.html` e fallback para a ultima copia das receitas.
+- CSP ativa nas 3 paginas, sanitizacao de XSS e tipografia acessivel (WCAG AA).
 
 ## Deploy no GitHub Pages
 
-1. Faca fork ou clone deste repositorio no GitHub.
-2. No repositorio, acesse: `Settings -> Pages -> Source -> Branch: main -> Folder: / (root)`.
-3. Clique em `Save`. Em cerca de 1 minuto, o site estara em: `https://SEU-USUARIO.github.io/nossas-receitas/`
-4. Para adicionar receitas: acesse `https://SEU-USUARIO.github.io/nossas-receitas/admin.html`
-5. A leitura do livro funciona sem token. Para salvar receitas no repositorio, configure um token GitHub no painel admin.
-6. Depois da primeira visita online, o livro pode ser instalado como app e continua acessivel offline neste dispositivo.
+1. Faca fork ou clone do repositorio.
+2. No repositorio, acesse `Settings -> Pages -> Source -> Branch: main -> Folder: / (root)` e salve.
+3. Em cerca de 1 minuto o site estara em `https://SEU-USUARIO.github.io/nossas-receitas/`.
+4. Atualize o arquivo [js/supabase-client.js](js/supabase-client.js) com a URL e a chave publica (`publishable`) do seu projeto Supabase.
+5. Pronto: qualquer dispositivo que abrir a URL do GitHub Pages ja enxerga, cria e edita receitas.
 
-## Como funciona a sincronizacao
+## Configurando o Supabase (primeira vez)
 
-- As receitas compartilhadas ficam em `data/receitas.json`.
-- O site le esse arquivo diretamente do repositorio usando a GitHub Contents API.
-- Para gravar alteracoes, o admin usa um token pessoal salvo somente no `localStorage` do navegador atual.
-- Sem token, o painel ainda consegue salvar receitas apenas neste navegador como fallback local.
-- Se o navegador tiver receitas antigas em `localStorage`, o painel oferece migracao automatica para o GitHub assim que um token valido for configurado.
+1. Crie um projeto novo em [supabase.com](https://supabase.com) (plano free serve). Anote a URL `https://<projeto>.supabase.co` e a chave publica `publishable`.
+2. Abra o SQL Editor e rode o conteudo de [sql/schema.sql](sql/schema.sql). Ele cria as tabelas `categorias` e `receitas`, liga RLS e ja planta as 4 categorias padrao.
+3. Em [js/supabase-client.js](js/supabase-client.js), substitua a URL e a chave pelas do seu projeto. A chave publishable pode ficar versionada — ela so libera leitura/escrita protegidas por RLS.
+4. Opcional: ajuste as policies em `sql/schema.sql` se quiser restringir escrita a usuarios autenticados.
 
-## Como criar o token
+> Cada dispositivo novo so precisa abrir o link do GitHub Pages. Nada de token, login ou configuracao manual.
 
-1. Abra [github.com/settings/tokens/new](https://github.com/settings/tokens/new).
-2. Em `Note`, use algo como `Nossas Receitas - Sync`.
-3. Para repositorio publico, marque a permissao `public_repo`.
-4. Gere o token, copie e cole em `admin.html`.
+## Scripts
 
-## Limites e cuidados
+```bash
+npm install            # instala Playwright e Vitest
+npm test               # roda vitest (unit) + playwright (E2E)
+npm run test:unit      # apenas unit
+npm run test:e2e       # apenas Playwright
+npm run test:headed    # Playwright com navegador visivel
+```
 
-- O token fica salvo apenas no navegador/dispositivo onde voce o configurou.
-- GitHub pode aplicar rate limit em leituras sem token. Se isso acontecer, configure um token ou aguarde alguns minutos.
-- Fotos muito grandes deixam `data/receitas.json` pesado. O painel recorta e compacta a imagem antes de salvar, mas ainda vale preferir fotos leves.
-- Se o arquivo JSON crescer demais, o painel bloqueia o salvamento e pede para reduzir fotos antigas.
-- O service worker guarda o shell do app e a ultima copia sincronizada deste dispositivo para manter a consulta offline apos a primeira visita.
+A primeira vez que rodar os testes visuais `tests/visual-regression.spec.js` precisa gerar os snapshots com `npx playwright test --update-snapshots`. Depois basta `npm run test:e2e`.
 
 ## Estrutura
 
-- `index.html`: capa do livro e abertura.
-- `livro.html`: indice, categorias, lista e detalhe da receita.
-- `admin.html`: painel de cadastro, edicao, token e migracao.
-- `data/receitas.json`: base sincronizada no repositorio.
-- `css/`: estilos segmentados por responsabilidade.
-- `js/`: sincronizacao, persistencia, busca, renderizacao, navegacao, status e admin.
-- `assets/`: capa, favicon, imagem OG e placeholder visual.
+- [index.html](index.html), [livro.html](livro.html), [admin.html](admin.html): as tres paginas do site.
+- [data/receitas.json](data/receitas.json): exemplo/seed opcional. A verdade de producao fica no Supabase.
+- [sql/schema.sql](sql/schema.sql): schema e policies do Supabase.
+- [css/](css): estilos segmentados (`base`, `livro`, `receita`, `categorias`, `admin`).
+- [js/](js): modulos vanilla — `supabase-client`, `storage`, `sync-status`, `busca`, `dom`, `categorias`, `receita`, `livro`, `validation`, `admin`, `pwa`, `utils`.
+- [tests/](tests): Playwright (E2E + visual regression) e [tests/unit/](tests/unit) com Vitest.
+- [docs/arquitetura.md](docs/arquitetura.md): visao tecnica do fluxo de leitura/escrita.
+- [docs/troubleshooting.md](docs/troubleshooting.md): o que fazer quando algo da errado.
 
-## Observacoes
+## Limites conhecidos
 
-- O projeto nao usa build step e pode ser aberto diretamente pelo `index.html`.
-- Para testes automatizados locais, use `npm test`.
-- O repositorio atual esta publicado em [github.com/geovanni10a/nossas-receitas](https://github.com/geovanni10a/nossas-receitas).
-- O site atual esta em [geovanni10a.github.io/nossas-receitas](https://geovanni10a.github.io/nossas-receitas/).
+- Fotos ficam em base64 dentro da linha da receita (limite de 100 KB para `foto` + 15 KB para `fotoThumb`).
+- A chave publishable autoriza leitura e escrita publica. Sem autenticacao, qualquer pessoa com a chave pode gravar. Se isso for um problema, ative Supabase Auth e aperte as policies.
+- O cache offline atualiza via service worker; apos uma troca grande de versao pode ser preciso fechar o app e abrir de novo para ver o codigo novo.
+- A suite Playwright usa um servidor estatico local em `127.0.0.1:4173` e mocka o Supabase — nao bate no projeto real.
+
+## Licenca
+
+Uso pessoal e familiar.

@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { buildRemotePayload, categories, mockGitHubContent } = require("./helpers");
+const { categories, mockSupabase } = require("./helpers");
 
 const featuredRecipe = {
   id: "favorita-da-casa",
@@ -24,16 +24,7 @@ const featuredRecipe = {
 };
 
 test.beforeEach(async ({ page }) => {
-  await mockGitHubContent(page, {
-    payload: buildRemotePayload({ receitas: [] })
-  });
-
-  await page.addInitScript(([seedCategories, seedRecipe]) => {
-    window.localStorage.setItem("nr_initialized", "true");
-    window.localStorage.setItem("nr_cleaned_defaults", "true");
-    window.localStorage.setItem("nr_categories", JSON.stringify(seedCategories));
-    window.localStorage.setItem("nr_recipes", JSON.stringify([seedRecipe]));
-  }, [categories, featuredRecipe]);
+  await mockSupabase(page, { recipes: [featuredRecipe], categories });
 });
 
 test("favoritar uma receita persiste e cria destaque no indice", async ({ page }) => {

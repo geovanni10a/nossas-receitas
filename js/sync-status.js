@@ -1,6 +1,6 @@
 (function () {
   function badgeCopy(status) {
-    var state = status && status.state ? status.state : "sem-token";
+    var state = status && status.state ? status.state : "carregando";
 
     if (state === "sincronizado") {
       return {
@@ -21,14 +21,14 @@
     if (state === "erro") {
       return {
         label: "Erro de sync",
-        detail: status.message || "Nao foi possivel falar com o GitHub",
+        detail: status.message || "Nao foi possivel falar com o Supabase",
         tone: "erro"
       };
     }
 
     return {
-      label: "Sem token",
-      detail: "Leitura publica ativa; configure um token para gravar",
+      label: "Carregando",
+      detail: status.message || "Sincronizando com o Supabase...",
       tone: "warning"
     };
   }

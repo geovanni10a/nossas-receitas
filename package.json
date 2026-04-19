@@ -1,7 +1,7 @@
 {
   "name": "teste-chat",
   "version": "1.0.0",
-  "description": "Site estatico em HTML, CSS e JavaScript puro com visual de livro de receitas antigo e sincronizacao opcional via GitHub Contents API.",
+  "description": "Site estatico em HTML, CSS e JavaScript puro com visual de livro de receitas antigo. Receitas sao armazenadas no Supabase e o site e hospedado no GitHub Pages.",
   "main": "index.js",
   "scripts": {
     "test": "npm run test:unit && npm run test:e2e",

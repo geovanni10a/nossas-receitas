@@ -1,6 +1,6 @@
 const { test, expect } = require("@playwright/test");
 const AxeBuilder = require("@axe-core/playwright").default;
-const { buildRemotePayload, categories, mockGitHubContent } = require("./helpers");
+const { categories, mockSupabase } = require("./helpers");
 
 const sampleRecipe = {
   id: "receita-acessivel",
@@ -33,11 +33,7 @@ async function expectNoAxeViolations(page) {
 }
 
 test("index.html passa na auditoria axe", async ({ page }) => {
-  await mockGitHubContent(page, {
-    payload: buildRemotePayload({
-      receitas: [sampleRecipe]
-    })
-  });
+  await mockSupabase(page, { recipes: [sampleRecipe], categories });
 
   await page.goto("/index.html");
   await expect(page.locator("#conteudo-principal")).toBeVisible();
@@ -45,11 +41,7 @@ test("index.html passa na auditoria axe", async ({ page }) => {
 });
 
 test("livro.html passa na auditoria axe", async ({ page }) => {
-  await mockGitHubContent(page, {
-    payload: buildRemotePayload({
-      receitas: [sampleRecipe]
-    })
-  });
+  await mockSupabase(page, { recipes: [sampleRecipe], categories });
 
   await page.goto("/livro.html?receita=receita-acessivel&categoria=doces");
   await expect(page.locator(".detalhe-receita")).toBeVisible();
@@ -57,11 +49,7 @@ test("livro.html passa na auditoria axe", async ({ page }) => {
 });
 
 test("admin.html passa na auditoria axe", async ({ page }) => {
-  await mockGitHubContent(page, {
-    payload: buildRemotePayload({
-      receitas: [sampleRecipe]
-    })
-  });
+  await mockSupabase(page, { recipes: [sampleRecipe], categories });
 
   await page.goto("/admin.html");
   await expect(page.locator("#recipe-form")).toBeVisible();
@@ -69,11 +57,7 @@ test("admin.html passa na auditoria axe", async ({ page }) => {
 });
 
 test("skip link move o foco para o conteudo principal", async ({ page }) => {
-  await mockGitHubContent(page, {
-    payload: buildRemotePayload({
-      receitas: [sampleRecipe]
-    })
-  });
+  await mockSupabase(page, { recipes: [sampleRecipe], categories });
 
   await page.goto("/livro.html");
   await page.keyboard.press("Tab");

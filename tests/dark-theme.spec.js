@@ -1,8 +1,8 @@
 const { test, expect } = require("@playwright/test");
-const { mockGitHubContent } = require("./helpers");
+const { mockSupabase } = require("./helpers");
 
 test("tema automatico respeita prefers-color-scheme dark no carregamento", async ({ page }) => {
-  await mockGitHubContent(page);
+  await mockSupabase(page);
   await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/index.html");
 
@@ -11,7 +11,7 @@ test("tema automatico respeita prefers-color-scheme dark no carregamento", async
 });
 
 test("toggle de tema persiste entre navegacoes", async ({ page }) => {
-  await mockGitHubContent(page);
+  await mockSupabase(page);
   await page.goto("/livro.html");
   const themeButton = page.locator("#toggle-theme-book");
 

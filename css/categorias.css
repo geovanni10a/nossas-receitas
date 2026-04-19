@@ -80,6 +80,19 @@
   font-family: var(--fonte-ui);
 }
 
+.categoria-card-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espaco-sm);
+  margin-top: var(--espaco-sm);
+}
+
+.categoria-card-acoes .botao-primario,
+.categoria-card-acoes .botao-secundario {
+  flex: 1 1 auto;
+  text-align: center;
+}
+
 .favoritos-destaque {
   display: grid;
   gap: var(--espaco-md);

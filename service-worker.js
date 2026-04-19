@@ -1,4 +1,4 @@
-var VERSION = "nr-v1";
+var VERSION = "nr-v2-supabase";
 var APP_SHELL_CACHE = VERSION + "-shell";
 var RUNTIME_CACHE = VERSION + "-runtime";
 var RECIPE_CACHE = VERSION + "-recipes";
@@ -15,8 +15,7 @@ var APP_SHELL_URLS = [
   "./css/receita.css",
   "./css/admin.css",
   "./js/utils.js",
-  "./js/diagnostics.js",
-  "./js/github-sync.js",
+  "./js/supabase-client.js",
   "./js/storage.js",
   "./js/sync-status.js",
   "./js/busca.js",
@@ -24,7 +23,6 @@ var APP_SHELL_URLS = [
   "./js/categorias.js",
   "./js/receita.js",
   "./js/livro.js",
-  "./js/migration.js",
   "./js/validation.js",
   "./js/admin.js",
   "./js/pwa.js",

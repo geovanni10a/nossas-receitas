@@ -1,5 +1,5 @@
 const { test, expect } = require("@playwright/test");
-const { buildRemotePayload, categories, mockGitHubContent } = require("./helpers");
+const { categories, mockSupabase } = require("./helpers");
 
 test("conteudo malicioso e exibido como texto sem executar scripts", async ({ page }) => {
   const malicious = '<img src=x onerror=alert(1)>';
@@ -7,12 +7,14 @@ test("conteudo malicioso e exibido como texto sem executar scripts", async ({ pa
     id: "xss-recipe",
     titulo: malicious,
     categoriaId: categories[0].id,
+    categoriaNome: categories[0].nome,
     tags: [malicious, "seguro"],
     tempoPreparo: "25 min",
     tempoForno: "",
     porcoes: 6,
     dificuldade: "Facil",
     foto: "",
+    fotoThumb: "",
     ingredientes: [malicious],
     modoPreparo: [malicious],
     dica: malicious,
@@ -26,11 +28,7 @@ test("conteudo malicioso e exibido como texto sem executar scripts", async ({ pa
     await dialog.dismiss();
   });
 
-  await mockGitHubContent(page, {
-    payload: buildRemotePayload({
-      receitas: [maliciousRecipe]
-    })
-  });
+  await mockSupabase(page, { recipes: [maliciousRecipe] });
 
   await page.goto("/livro.html?receita=xss-recipe");
 

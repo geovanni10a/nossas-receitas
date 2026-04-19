@@ -1,8 +1,8 @@
 const { test, expect } = require("@playwright/test");
-const { mockGitHubContent } = require("./helpers");
+const { mockSupabase } = require("./helpers");
 
 test("admin recupera rascunho automaticamente apos recarregar", async ({ page }) => {
-  await mockGitHubContent(page);
+  await mockSupabase(page);
   await page.goto("/admin.html");
 
   await page.fill("#titulo", "Torta de teste");

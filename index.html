@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-96QVNzQRVQv14QgWojaclJir8h4z6XiENUwQGJxgW6c=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://rurqwnwomrssnhxhsgfh.supabase.co wss://rurqwnwomrssnhxhsgfh.supabase.co; font-src 'self' https://fonts.gstatic.com data:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
   <title>Nossas Receitas</title>
   <meta name="theme-color" content="#A0522D">
-  <meta name="description" content="Livro pessoal de receitas com visual de livro antigo e sincronizacao via GitHub.">
+  <meta name="description" content="Livro pessoal de receitas com visual vintage e sincronização automática entre dispositivos.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
   <meta property="og:title" content="Nossas Receitas">
-  <meta property="og:description" content="Um livro de receitas vintage para guardar sabores da familia com sincronizacao via GitHub.">
+  <meta property="og:description" content="Um livro de receitas vintage para guardar sabores da família, sincronizado na nuvem.">
   <meta property="og:image" content="assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Nossas Receitas">
-  <meta name="twitter:description" content="Um livro de receitas vintage para guardar sabores da familia com sincronizacao via GitHub.">
+  <meta name="twitter:description" content="Um livro de receitas vintage para guardar sabores da família, sincronizado na nuvem.">
   <meta name="twitter:image" content="assets/og.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
@@ -27,32 +27,32 @@
   <link rel="stylesheet" href="css/categorias.css">
 </head>
 <body class="pagina-capa">
-  <a class="skip-link" href="#conteudo-principal">Pular para o conteudo principal</a>
+  <a class="skip-link" href="#conteudo-principal">Pular para o conteúdo principal</a>
   <div class="fundo-livro"></div>
   <main class="intro-livro" id="conteudo-principal" tabindex="-1" aria-live="polite">
     <h1 class="sr-only">Nossas Receitas</h1>
     <div class="intro-utilidades">
       <div id="sync-status-home" class="painel-status-shell"></div>
-      <button class="botao-secundario botao-utilitario theme-toggle" id="toggle-theme-home" type="button">Tema automatico</button>
-      <button class="botao-secundario botao-utilitario" id="toggle-motion-home" type="button">Movimento automatico</button>
+      <button class="botao-secundario botao-utilitario theme-toggle" id="toggle-theme-home" type="button">Tema automático</button>
+      <button class="botao-secundario botao-utilitario" id="toggle-motion-home" type="button">Movimento automático</button>
     </div>
 
     <section class="mesa-livro">
       <div class="livro-intro-shell" id="intro-shell">
         <div class="livro-preview" id="preview" aria-hidden="true">
           <div class="pagina-preview">
-            <p class="sobretitulo">Indice do livro</p>
-            <h2>Sabores guardados em familia</h2>
+            <p class="sobretitulo">Índice do livro</p>
+            <h2>Sabores guardados em família</h2>
             <div class="preview-categorias" id="preview-categorias"></div>
-            <a class="botao-secundario" href="livro.html">Ir para o indice completo</a>
+            <a class="botao-secundario" href="livro.html">Ir para o índice completo</a>
           </div>
         </div>
-        <button class="capa-livro" id="abrir-livro" aria-label="Abrir o livro de receitas e revelar o indice de categorias">
+        <button class="capa-livro" id="abrir-livro" aria-label="Abrir o livro de receitas e revelar o índice de categorias">
           <span class="capa-brilho"></span>
           <span class="capa-conteudo">
             <span class="capa-kicker">Caderno da cozinha</span>
             <strong>Nossas Receitas</strong>
-            <span class="capa-subtitulo">Memorias, cheiros e pratos para repetir</span>
+            <span class="capa-subtitulo">Memórias, cheiros e pratos para repetir</span>
             <span class="botao-capa">Abrir o livro</span>
           </span>
         </button>
@@ -60,9 +60,9 @@
     </section>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/utils.js"></script>
-  <script src="js/diagnostics.js"></script>
-  <script src="js/github-sync.js"></script>
+  <script src="js/supabase-client.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/sync-status.js"></script>
   <script src="js/dom.js"></script>

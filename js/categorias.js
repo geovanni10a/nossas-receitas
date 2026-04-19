@@ -2,6 +2,7 @@
   var PLACEHOLDER = "assets/sem-foto.svg";
   var h = window.NRDom.h;
   var fragment = window.NRDom.fragment;
+  var MAX_CATEGORIES = 4;
 
   function recipeCard(recipe) {
     var image = window.NRUtils.safeImageSource(recipe.fotoThumb || recipe.foto, PLACEHOLDER);
@@ -62,23 +63,51 @@
     );
   }
 
+  function categoryCard(category) {
+    return h(
+      "article",
+      { className: "categoria-card" },
+      h(
+        "div",
+        { className: "categoria-card-topo" },
+        h("span", { className: "categoria-icone" }, category.icone),
+        h("small", null, category.totalReceitas + (category.totalReceitas === 1 ? " receita" : " receitas"))
+      ),
+      h(
+        "div",
+        null,
+        h("h3", null, category.nome),
+        h("p", null, "Abra esta secao ou adicione uma nova receita desta categoria.")
+      ),
+      h(
+        "div",
+        { className: "categoria-card-acoes" },
+        h(
+          "a",
+          {
+            className: "botao-secundario botao-utilitario",
+            href: "livro.html?categoria=" + encodeURIComponent(category.id)
+          },
+          category.totalReceitas ? "Abrir categoria" : "Abrir vazia"
+        ),
+        h(
+          "a",
+          {
+            className: "botao-primario botao-utilitario",
+            href: "admin.html?categoria=" + encodeURIComponent(category.id)
+          },
+          "Adicionar aqui"
+        )
+      )
+    );
+  }
+
   async function renderCategoriesView() {
-    var categories = await window.NRStorage.getCategories();
+    var allCategories = await window.NRStorage.getCategories();
+    var categories = allCategories.slice(0, MAX_CATEGORIES);
     var favoriteRecipes = window.NRStorage && typeof window.NRStorage.getFavoriteRecipes === "function"
       ? await window.NRStorage.getFavoriteRecipes(3)
       : [];
-    var totalRecipes = categories.reduce(function (total, category) {
-      return total + category.totalReceitas;
-    }, 0);
-
-    if (!totalRecipes) {
-      return renderEmptyState(
-        "Seu livro ainda esta em branco. Que tal adicionar a primeira receita?",
-        "Salve sua primeira receita no painel admin e ela ficara sincronizada entre os dispositivos configurados.",
-        "Abrir painel admin",
-        "admin.html"
-      );
-    }
 
     return h(
       "section",
@@ -91,9 +120,9 @@
           null,
           h("p", { className: "sobretitulo" }, "Indice da cozinha"),
           h("h1", null, "Escolha uma categoria"),
-          h("p", null, "Passeie pelas paginas, busque por um ingrediente favorito e mantenha tudo sincronizado pelo GitHub.")
+          h("p", null, "Abra uma secao para ler as receitas ou escolha onde adicionar a proxima.")
         ),
-        h("a", { className: "botao-secundario", href: "admin.html" }, "Adicionar uma nova receita")
+        h("a", { className: "botao-secundario", href: "admin.html" }, "Adicionar receita")
       ),
       favoriteRecipes.length ? h(
         "section",
@@ -118,27 +147,7 @@
       h(
         "div",
         { className: "categorias-grid" },
-        categories.map(function (category) {
-          return h(
-            "a",
-            {
-              className: "categoria-card",
-              href: "livro.html?categoria=" + encodeURIComponent(category.id)
-            },
-            h(
-              "div",
-              { className: "categoria-card-topo" },
-              h("span", { className: "categoria-icone" }, category.icone),
-              h("small", null, category.totalReceitas + (category.totalReceitas === 1 ? " receita" : " receitas"))
-            ),
-            h(
-              "div",
-              null,
-              h("h3", null, category.nome),
-              h("p", null, "Abra esta secao e veja suas receitas em paginas delicadas e faceis de consultar.")
-            )
-          );
-        })
+        categories.map(categoryCard)
       )
     );
   }
@@ -156,11 +165,23 @@
         "section",
         { className: "estado-vazio" },
         h("h2", null, "Ainda nao ha receitas aqui. Que tal adicionar uma?"),
-        h("p", null, "Voce pode preencher esta categoria abrindo o painel administrativo."),
+        h("p", null, "Clique abaixo para cadastrar a primeira receita desta categoria."),
         h(
           "p",
           null,
-          h("a", { className: "botao-primario", href: "admin.html" }, "Ir para o painel")
+          h(
+            "a",
+            {
+              className: "botao-primario",
+              href: "admin.html?categoria=" + encodeURIComponent(category.id)
+            },
+            "Adicionar receita em " + category.nome
+          )
+        ),
+        h(
+          "p",
+          null,
+          h("a", { className: "botao-secundario", href: "livro.html" }, "Voltar ao indice")
         )
       );
     }
@@ -172,7 +193,14 @@
         "div",
         { className: "navegacao-livro" },
         h("a", { className: "botao-secundario", href: "livro.html" }, "Voltar ao indice"),
-        h("a", { className: "botao-secundario", href: "admin.html" }, "Adicionar receita")
+        h(
+          "a",
+          {
+            className: "botao-primario",
+            href: "admin.html?categoria=" + encodeURIComponent(category.id)
+          },
+          "Adicionar receita em " + category.nome
+        )
       ),
       h(
         "header",
@@ -201,7 +229,7 @@
     var categories = await window.NRStorage.getCategories();
 
     return fragment(
-      categories.slice(0, 4).map(function (category) {
+      categories.slice(0, MAX_CATEGORIES).map(function (category) {
         return h(
           "div",
           { className: "preview-categoria" },

@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-96QVNzQRVQv14QgWojaclJir8h4z6XiENUwQGJxgW6c=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
-  <title>Nossas Receitas | Admin</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://rurqwnwomrssnhxhsgfh.supabase.co wss://rurqwnwomrssnhxhsgfh.supabase.co; font-src 'self' https://fonts.gstatic.com data:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
+  <title>Nossas Receitas | Adicionar receita</title>
   <meta name="theme-color" content="#A0522D">
-  <meta name="description" content="Painel para criar, editar e sincronizar receitas do livro Nossas Receitas.">
+  <meta name="description" content="Adicione ou edite receitas do livro Nossas Receitas.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
-  <meta property="og:title" content="Nossas Receitas | Admin">
-  <meta property="og:description" content="Configure a sincronizacao, organize o livro e salve novas receitas da familia.">
+  <meta property="og:title" content="Nossas Receitas | Adicionar receita">
+  <meta property="og:description" content="Salve novas receitas da familia com foto, ingredientes e modo de preparo.">
   <meta property="og:image" content="assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Nossas Receitas | Admin">
-  <meta name="twitter:description" content="Configure a sincronizacao, organize o livro e salve novas receitas da familia.">
+  <meta name="twitter:title" content="Nossas Receitas | Adicionar receita">
+  <meta name="twitter:description" content="Salve novas receitas da familia com foto, ingredientes e modo de preparo.">
   <meta name="twitter:image" content="assets/og.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
@@ -31,8 +31,8 @@
   <main class="admin-layout" id="conteudo-principal" tabindex="-1">
     <header class="admin-topo">
       <div>
-        <p class="sobretitulo">Painel do caderno</p>
-        <h1 id="admin-titulo">Nova receita</h1>
+        <p class="sobretitulo">Nossas Receitas</p>
+        <h1 id="admin-titulo">Adicionar receita</h1>
       </div>
       <div class="admin-acoes-topo">
         <div id="sync-status-admin" class="painel-status-shell"></div>
@@ -42,119 +42,6 @@
         <button class="botao-perigo" id="delete-recipe" type="button" hidden>Excluir receita</button>
       </div>
     </header>
-
-    <section class="card-admin config-github" id="secao-config-github">
-      <div class="config-github__topo">
-        <div>
-          <p class="sobretitulo">Sincronizacao</p>
-          <h2>Wizard de configuracao do GitHub</h2>
-          <p>Leitura funciona sem token. Para salvar no repositorio e sincronizar entre dispositivos, siga os 3 passos abaixo.</p>
-        </div>
-        <a
-          class="botao-secundario"
-          href="https://github.com/settings/tokens/new?description=Nossas%20Receitas%20-%20Sync&scopes=public_repo"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Criar token
-        </a>
-      </div>
-
-      <ol class="wizard-token">
-        <li>Crie um token pessoal para este repositorio e copie o valor gerado.</li>
-        <li>Confira owner, repositorio e branch abaixo. Em forks, voce pode sobrescrever essa deteccao automatica.</li>
-        <li>Cole o token, valide e confirme se o painel mostra o total de receitas e o destino correto.</li>
-      </ol>
-
-      <div class="repo-wrapper">
-        <label class="campo">
-          <span>Owner</span>
-          <input type="text" id="repo-owner" placeholder="Detectado automaticamente">
-        </label>
-        <label class="campo">
-          <span>Repositorio</span>
-          <input type="text" id="repo-name" placeholder="Detectado automaticamente">
-        </label>
-        <label class="campo">
-          <span>Branch</span>
-          <input type="text" id="repo-branch" placeholder="main">
-        </label>
-        <button class="botao-secundario botao-utilitario" type="button" id="btn-reset-repo">Usar deteccao automatica</button>
-      </div>
-
-      <div class="token-wrapper">
-        <label class="campo campo-token">
-          <span>Token GitHub</span>
-          <input
-            type="password"
-            id="campo-token"
-            autocomplete="off"
-            spellcheck="false"
-            placeholder="Cole aqui o token com permissao para editar o repositorio"
-          >
-        </label>
-
-        <div class="token-acoes">
-          <button class="botao-primario" type="button" id="btn-salvar-token">Salvar token</button>
-          <button class="botao-secundario" type="button" id="btn-limpar-token">Limpar token</button>
-        </div>
-      </div>
-
-      <p class="status-token" id="status-token" aria-live="polite"></p>
-      <div class="wizard-resumo" id="wizard-resumo" hidden></div>
-    </section>
-
-    <section class="card-admin espaco-admin" id="secao-espaco">
-      <div class="config-github__topo">
-        <div>
-          <p class="sobretitulo">Armazenamento</p>
-          <h2>Espaco usado em receitas.json</h2>
-          <p>O painel avisa quando o livro se aproxima do limite e mostra as receitas mais pesadas para facilitar a limpeza.</p>
-        </div>
-        <button class="botao-secundario" type="button" id="btn-atualizar-espaco">Atualizar espaco</button>
-      </div>
-      <div class="barra-espaco" aria-hidden="true">
-        <span id="barra-espaco-preenchimento"></span>
-      </div>
-      <p class="espaco-resumo" id="espaco-resumo"></p>
-      <div id="espaco-alerta"></div>
-      <div class="espaco-lista" id="espaco-lista"></div>
-      <div id="thumb-migracao-shell"></div>
-    </section>
-
-    <section class="card-admin diagnostico-admin" id="secao-diagnostico">
-      <div class="config-github__topo">
-        <div>
-          <p class="sobretitulo">Diagnostico</p>
-          <h2>Ultimas operacoes de sincronizacao</h2>
-          <p>Use este painel para ver leituras, gravacoes, retries e fallbacks recentes antes de investigar um problema em outro dispositivo.</p>
-        </div>
-        <div class="token-acoes">
-          <button class="botao-secundario" type="button" id="btn-exportar-log">Exportar log</button>
-          <button class="botao-secundario" type="button" id="btn-limpar-log">Limpar log</button>
-        </div>
-      </div>
-      <div class="diagnostico-lista" id="diagnostico-lista"></div>
-    </section>
-
-    <section class="card-admin historico-admin" id="secao-historico">
-      <div class="config-github__topo">
-        <div>
-          <p class="sobretitulo">Historico</p>
-          <h2>Versoes recentes das receitas</h2>
-          <p>Veja os ultimos commits do arquivo de receitas, descubra o que mudou em cada versao e restaure apenas a receita desejada.</p>
-        </div>
-        <button class="botao-secundario" type="button" id="btn-atualizar-historico">Atualizar historico</button>
-      </div>
-      <div class="historico-shell">
-        <div class="historico-lista" id="historico-commits" aria-live="polite"></div>
-        <div class="historico-detalhe" id="historico-detalhe" tabindex="-1" aria-live="polite"></div>
-      </div>
-    </section>
-
-    <div id="container-migracao"></div>
-
-    <div class="modal-shell" id="conflito-modal-shell" hidden></div>
 
     <form class="form-receita" id="recipe-form" novalidate>
       <div class="form-grid">
@@ -262,11 +149,10 @@
     </form>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/utils.js"></script>
-  <script src="js/diagnostics.js"></script>
-  <script src="js/github-sync.js"></script>
+  <script src="js/supabase-client.js"></script>
   <script src="js/dom.js"></script>
-  <script src="js/migration.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/sync-status.js"></script>
   <script src="js/validation.js"></script>

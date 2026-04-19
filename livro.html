@@ -3,18 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-96QVNzQRVQv14QgWojaclJir8h4z6XiENUwQGJxgW6c=' https://unpkg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://api.github.com; font-src 'self' https://fonts.gstatic.com data:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: https:; connect-src 'self' https://rurqwnwomrssnhxhsgfh.supabase.co wss://rurqwnwomrssnhxhsgfh.supabase.co; font-src 'self' https://fonts.gstatic.com data:; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self'">
   <title>Nossas Receitas | Livro</title>
   <meta name="theme-color" content="#A0522D">
-  <meta name="description" content="Indice, categorias e receitas do livro Nossas Receitas.">
+  <meta name="description" content="Índice, categorias e receitas do livro Nossas Receitas.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
   <meta property="og:title" content="Nossas Receitas | Livro">
-  <meta property="og:description" content="Abra o livro, navegue por categorias e encontre a proxima receita da familia.">
+  <meta property="og:description" content="Abra o livro, navegue por categorias e encontre a próxima receita da família.">
   <meta property="og:image" content="assets/og.png">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Nossas Receitas | Livro">
-  <meta name="twitter:description" content="Abra o livro, navegue por categorias e encontre a proxima receita da familia.">
+  <meta name="twitter:description" content="Abra o livro, navegue por categorias e encontre a próxima receita da família.">
   <meta name="twitter:image" content="assets/og.png">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
@@ -28,25 +28,25 @@
   <link rel="stylesheet" href="css/receita.css">
 </head>
 <body class="pagina-livro">
-  <a class="skip-link" href="#conteudo-principal">Pular para o conteudo principal</a>
+  <a class="skip-link" href="#conteudo-principal">Pular para o conteúdo principal</a>
   <div class="fundo-livro"></div>
   <main class="livro-app" id="conteudo-principal" tabindex="-1">
     <header class="topo-livro">
       <a class="marca-livro" href="index.html">Nossas Receitas</a>
       <div class="busca-shell" id="busca-shell" role="search">
-        <label class="rotulo-busca" for="busca-receitas">Buscar receitas</label>
-        <input id="busca-receitas" type="search" placeholder="Busque por nome ou tag" autocomplete="off" aria-controls="busca-resultados">
+        <label class="rotulo-busca" for="busca-receitas">Pesquisar</label>
+        <input id="busca-receitas" type="search" placeholder="Pesquisar" autocomplete="off" aria-controls="busca-resultados">
         <div class="dropdown-busca" id="busca-resultados" hidden aria-live="polite"></div>
       </div>
       <div class="topo-ferramentas">
         <div id="sync-status-book" class="painel-status-shell"></div>
         <button class="botao-secundario botao-utilitario botao-busca-mobile" id="toggle-search-book" type="button" aria-label="Abrir a busca de receitas" aria-expanded="false">
           <i data-lucide="search" aria-hidden="true"></i>
-          <span class="sr-only">Buscar receitas</span>
+          <span class="sr-only">Pesquisar</span>
         </button>
-        <button class="botao-secundario botao-utilitario theme-toggle" id="toggle-theme-book" type="button">Tema automatico</button>
-        <button class="botao-secundario botao-utilitario" id="toggle-motion-book" type="button">Movimento automatico</button>
-        <a class="botao-secundario" href="admin.html">Adicionar receita</a>
+        <button class="botao-secundario botao-utilitario theme-toggle" id="toggle-theme-book" type="button">Tema automático</button>
+        <button class="botao-secundario botao-utilitario" id="toggle-motion-book" type="button">Movimento automático</button>
+        <a class="botao-primario" href="admin.html">Adicionar receita</a>
       </div>
     </header>
 
@@ -63,9 +63,9 @@
   </main>
 
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/utils.js"></script>
-  <script src="js/diagnostics.js"></script>
-  <script src="js/github-sync.js"></script>
+  <script src="js/supabase-client.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/sync-status.js"></script>
   <script src="js/busca.js"></script>
