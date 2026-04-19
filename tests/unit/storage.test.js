@@ -250,4 +250,27 @@ describe("NRStorage", () => {
     expect(storage.getSyncStatus().state).toBe("offline");
     expect(storage.getSyncStatus().message).toContain("ultima copia sincronizada");
   });
+
+  it("salva favoritos localmente e retorna as receitas favoritas na ordem mais recente", async () => {
+    env.window.localStorage.setItem("nr_categories", JSON.stringify([
+      { id: "doces", nome: "Doces", icone: "ðŸ°", cor: "#C4845A" }
+    ]));
+    env.window.localStorage.setItem("nr_recipes", JSON.stringify([
+      { id: "1", titulo: "Bolo", categoriaId: "doces" },
+      { id: "2", titulo: "Torta", categoriaId: "doces" }
+    ]));
+
+    expect(storage.toggleFavoriteRecipe("1")).toBe(true);
+    expect(storage.toggleFavoriteRecipe("2")).toBe(true);
+    expect(storage.isFavoriteRecipe("1")).toBe(true);
+    expect(storage.getFavoriteRecipeIds()).toEqual(["2", "1"]);
+
+    await expect(storage.getFavoriteRecipes()).resolves.toEqual([
+      { id: "2", titulo: "Torta", categoriaId: "doces" },
+      { id: "1", titulo: "Bolo", categoriaId: "doces" }
+    ]);
+
+    expect(storage.toggleFavoriteRecipe("2")).toBe(false);
+    expect(storage.getFavoriteRecipeIds()).toEqual(["1"]);
+  });
 });

@@ -60,6 +60,10 @@
   }
 
   function finalizeRender(html, onAfterRender, container) {
+    if (window.NRReceita && typeof window.NRReceita.cleanupRecipeInteractions === "function") {
+      window.NRReceita.cleanupRecipeInteractions();
+    }
+
     mountRenderable(container, html);
     state.currentHTML = typeof html === "string" ? html : "__rendered__";
 

@@ -5,6 +5,9 @@
 
   function recipeCard(recipe) {
     var image = window.NRUtils.safeImageSource(recipe.fotoThumb || recipe.foto, PLACEHOLDER);
+    var isFavorite = window.NRStorage && typeof window.NRStorage.isFavoriteRecipe === "function"
+      ? window.NRStorage.isFavoriteRecipe(recipe.id)
+      : false;
 
     return h(
       "a",
@@ -29,6 +32,7 @@
         h(
           "div",
           { className: "meta-receita" },
+          isFavorite ? h("span", { className: "meta-chip meta-chip--favorite" }, "Favorita") : null,
           h("span", { className: "meta-chip" }, recipe.tempoPreparo || "Tempo livre"),
           h("span", { className: "meta-chip" }, recipe.dificuldade || "Facil")
         )
@@ -60,6 +64,9 @@
 
   async function renderCategoriesView() {
     var categories = await window.NRStorage.getCategories();
+    var favoriteRecipes = window.NRStorage && typeof window.NRStorage.getFavoriteRecipes === "function"
+      ? await window.NRStorage.getFavoriteRecipes(3)
+      : [];
     var totalRecipes = categories.reduce(function (total, category) {
       return total + category.totalReceitas;
     }, 0);
@@ -88,6 +95,26 @@
         ),
         h("a", { className: "botao-secundario", href: "admin.html" }, "Adicionar uma nova receita")
       ),
+      favoriteRecipes.length ? h(
+        "section",
+        { className: "favoritos-destaque" },
+        h(
+          "div",
+          { className: "cabecalho-view" },
+          h(
+            "div",
+            null,
+            h("p", { className: "sobretitulo" }, "Favoritas da casa"),
+            h("h2", null, "Receitas para abrir rapidinho"),
+            h("p", null, "As receitas marcadas com coracao ficam sempre por perto, prontas para a proxima fornada.")
+          )
+        ),
+        h(
+          "div",
+          { className: "receitas-lista favoritas-lista" },
+          favoriteRecipes.map(recipeCard)
+        )
+      ) : null,
       h(
         "div",
         { className: "categorias-grid" },

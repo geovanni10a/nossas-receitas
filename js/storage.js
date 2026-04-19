@@ -4,7 +4,8 @@
     categories: "nr_categories",
     initialized: "nr_initialized",
     cleanedDefaults: "nr_cleaned_defaults",
-    lastSync: "nr_last_sync"
+    lastSync: "nr_last_sync",
+    favorites: "nr_favoritos"
   };
 
   var LEGACY_DEFAULT_RECIPE_IDS = ["1714000000000", "1714000000100"];
@@ -108,6 +109,14 @@
     window.localStorage.setItem(key, JSON.stringify(value));
   }
 
+  function emitFavoritesChanged(ids) {
+    window.dispatchEvent(new CustomEvent("nr:favorites-changed", {
+      detail: {
+        ids: (ids || []).slice()
+      }
+    }));
+  }
+
   function emitSyncChanged() {
     window.dispatchEvent(new CustomEvent("nr:sync-changed", {
       detail: getSyncStatus()
@@ -188,6 +197,84 @@
     window.localStorage.removeItem(LOCAL_KEYS.recipes);
     window.localStorage.removeItem(LOCAL_KEYS.categories);
     window.localStorage.removeItem(LOCAL_KEYS.initialized);
+  }
+
+  function getFavoriteRecipeIds() {
+    var ids = safeParse(LOCAL_KEYS.favorites, []);
+    var uniqueIds = [];
+
+    if (!Array.isArray(ids)) {
+      return uniqueIds;
+    }
+
+    ids.forEach(function (id) {
+      var normalizedId = String(id || "").trim();
+
+      if (!normalizedId || uniqueIds.indexOf(normalizedId) !== -1) {
+        return;
+      }
+
+      uniqueIds.push(normalizedId);
+    });
+
+    return uniqueIds;
+  }
+
+  function persistFavoriteRecipeIds(ids) {
+    var normalizedIds = (ids || []).map(function (id) {
+      return String(id || "").trim();
+    }).filter(Boolean);
+
+    if (normalizedIds.length) {
+      writeJson(LOCAL_KEYS.favorites, normalizedIds);
+    } else {
+      window.localStorage.removeItem(LOCAL_KEYS.favorites);
+    }
+
+    emitFavoritesChanged(normalizedIds);
+    return normalizedIds;
+  }
+
+  function isFavoriteRecipe(id) {
+    return getFavoriteRecipeIds().indexOf(String(id || "")) !== -1;
+  }
+
+  function setFavoriteRecipe(id, shouldFavorite) {
+    var recipeId = String(id || "").trim();
+    var ids;
+
+    if (!recipeId) {
+      return false;
+    }
+
+    ids = getFavoriteRecipeIds().filter(function (currentId) {
+      return currentId !== recipeId;
+    });
+
+    if (shouldFavorite) {
+      ids.unshift(recipeId);
+    }
+
+    persistFavoriteRecipeIds(ids);
+    return shouldFavorite;
+  }
+
+  function toggleFavoriteRecipe(id) {
+    return setFavoriteRecipe(id, !isFavoriteRecipe(id));
+  }
+
+  function discardFavoriteRecipe(id) {
+    var recipeId = String(id || "").trim();
+    var nextIds;
+
+    if (!recipeId || !isFavoriteRecipe(recipeId)) {
+      return;
+    }
+
+    nextIds = getFavoriteRecipeIds().filter(function (currentId) {
+      return currentId !== recipeId;
+    });
+    persistFavoriteRecipeIds(nextIds);
   }
 
   function clearLegacyDefaultRecipes() {
@@ -825,6 +912,30 @@
     });
   }
 
+  async function getFavoriteRecipes(limit) {
+    var favoriteIds = getFavoriteRecipeIds();
+    var recipes;
+    var recipeMap;
+    var favorites;
+    var normalizedLimit;
+
+    if (!favoriteIds.length) {
+      return [];
+    }
+
+    recipes = await getAllRecipes();
+    recipeMap = recipes.reduce(function (map, recipe) {
+      map.set(String(recipe.id), recipe);
+      return map;
+    }, new Map());
+    favorites = favoriteIds.map(function (id) {
+      return recipeMap.get(id) || null;
+    }).filter(Boolean);
+    normalizedLimit = Number(limit || 0);
+
+    return normalizedLimit > 0 ? favorites.slice(0, normalizedLimit) : favorites;
+  }
+
   async function getCategoryById(categoryId) {
     var categorias = await getCategories();
     return categorias.find(function (category) {
@@ -1020,6 +1131,7 @@
       }
 
       invalidateCache();
+      discardFavoriteRecipe(recipeId);
       logDiagnostic({
         source: "storage",
         kind: "delete",
@@ -1070,6 +1182,7 @@
     }
 
     invalidateCache();
+    discardFavoriteRecipe(recipeId);
     noteSyncSuccess("github", "Receita removida e sincronizada.");
   }
 
@@ -1089,12 +1202,17 @@
     getRecipesByCategory: getRecipesByCategory,
     getCategories: getCategories,
     getCategoryById: getCategoryById,
+    getFavoriteRecipeIds: getFavoriteRecipeIds,
+    getFavoriteRecipes: getFavoriteRecipes,
     getSpaceReport: getSpaceReport,
     getRecipeHistory: getRecipeHistory,
     getRecipeHistoryDetail: getRecipeHistoryDetail,
     getSyncStatus: getSyncStatus,
+    isFavoriteRecipe: isFavoriteRecipe,
     saveRecipe: saveRecipe,
     restoreRecipeFromHistory: restoreRecipeFromHistory,
+    setFavoriteRecipe: setFavoriteRecipe,
+    toggleFavoriteRecipe: toggleFavoriteRecipe,
     deleteRecipe: deleteRecipe,
     refreshSync: refreshSync,
     initDefaultData: initDefaultData,
@@ -1117,7 +1235,9 @@
       validateRepositorySize: validateRepositorySize,
       areHistoryRecipesEquivalent: areHistoryRecipesEquivalent,
       getHistoryChangedFields: getHistoryChangedFields,
-      buildHistoryRecipeDiffs: buildHistoryRecipeDiffs
+      buildHistoryRecipeDiffs: buildHistoryRecipeDiffs,
+      discardFavoriteRecipe: discardFavoriteRecipe,
+      persistFavoriteRecipeIds: persistFavoriteRecipeIds
     }
   };
 })();

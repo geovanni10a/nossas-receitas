@@ -36,6 +36,7 @@ describe("NRReceita", () => {
         id: "doces",
         nome: "Doces & Sobremesas"
       }),
+      isFavoriteRecipe: vi.fn().mockReturnValue(false),
       getRecipesByCategory: vi.fn().mockResolvedValue([
         { id: "recipe-1", categoriaId: "doces" }
       ])
@@ -71,6 +72,7 @@ describe("NRReceita", () => {
         id: "doces",
         nome: "Doces & Sobremesas"
       }),
+      isFavoriteRecipe: vi.fn().mockReturnValue(false),
       getRecipesByCategory: vi.fn().mockResolvedValue([
         { id: "recipe-1", categoriaId: "doces" },
         { id: "recipe-2", categoriaId: "doces" }
@@ -93,5 +95,46 @@ describe("NRReceita", () => {
     button.click();
     expect(button.classList.contains("is-done")).toBe(false);
     expect(button.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it("renderiza o detalhe com favorito e modo cozinha quando a URL pede", async () => {
+    env.close();
+    env = createBrowserEnv({
+      url: "https://geovanni10a.github.io/nossas-receitas/livro.html?receita=recipe-3&categoria=doces&cozinha=1"
+    });
+    env.loadScripts(["js/utils.js", "js/dom.js", "js/receita.js"]);
+    recipeApi = env.window.NRReceita;
+
+    env.window.NRStorage = {
+      getRecipeById: vi.fn().mockResolvedValue({
+        id: "recipe-3",
+        titulo: "Bolo favorito",
+        categoriaId: "doces",
+        tags: [],
+        tempoPreparo: "30 min",
+        tempoForno: "",
+        porcoes: 6,
+        dificuldade: "Facil",
+        foto: "",
+        ingredientes: ["Farinha"],
+        modoPreparo: ["Misture tudo"],
+        dica: ""
+      }),
+      getCategoryById: vi.fn().mockResolvedValue({
+        id: "doces",
+        nome: "Doces & Sobremesas"
+      }),
+      isFavoriteRecipe: vi.fn().mockReturnValue(true),
+      getRecipesByCategory: vi.fn().mockResolvedValue([
+        { id: "recipe-3", categoriaId: "doces" }
+      ])
+    };
+
+    const node = await recipeApi.renderRecipeDetail("recipe-3");
+
+    expect(node.classList.contains("is-kitchen-mode")).toBe(true);
+    expect(node.querySelector("[data-favorite-toggle]").getAttribute("aria-pressed")).toBe("true");
+    expect(node.querySelector("[data-favorite-chip]").hidden).toBe(false);
+    expect(node.querySelector("[data-kitchen-toggle]").getAttribute("aria-pressed")).toBe("true");
   });
 });

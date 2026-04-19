@@ -30,6 +30,20 @@
   gap: var(--espaco-md);
 }
 
+.receita-selo-favorita {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-xs);
+  margin-top: var(--espaco-sm);
+  padding: var(--espaco-xs) var(--espaco-sm);
+  border: 1px solid var(--cor-borda);
+  border-radius: 999px;
+  color: var(--cor-acento);
+  font-family: var(--fonte-ui);
+  font-size: var(--texto-sm);
+  background-color: var(--cor-luz-20);
+}
+
 .receita-imagem {
   position: relative;
   width: 100%;
@@ -153,6 +167,28 @@
   background-color: var(--cor-luz-18);
 }
 
+.modo-cozinha-banner {
+  display: grid;
+  gap: var(--espaco-xs);
+  padding: var(--espaco-md) var(--espaco-lg);
+  border: 1px solid var(--cor-borda);
+  border-radius: var(--raio-lg);
+  background:
+    linear-gradient(135deg, var(--cor-luz-20), transparent),
+    var(--cor-papel);
+}
+
+.modo-cozinha-banner strong {
+  color: var(--cor-titulo);
+  font-family: var(--fonte-titulo);
+  font-size: var(--texto-lg);
+}
+
+.modo-cozinha-banner p {
+  margin: 0;
+  font-family: var(--fonte-ui);
+}
+
 .topo-detalhe {
   display: flex;
   justify-content: space-between;
@@ -164,6 +200,7 @@
   display: flex;
   gap: var(--espaco-sm);
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .botao-icone {
@@ -175,6 +212,80 @@
   border: 1px solid var(--cor-borda);
   border-radius: 999px;
   background-color: var(--cor-papel);
+}
+
+.botao-icone svg {
+  width: 18px;
+  height: 18px;
+}
+
+.botao-receita-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--espaco-sm);
+}
+
+.botao-receita-toggle svg {
+  width: 18px;
+  height: 18px;
+}
+
+.botao-receita-toggle.is-favorite {
+  color: var(--cor-acento);
+  border-color: var(--cor-acento-suave);
+}
+
+.botao-receita-toggle.is-favorite svg {
+  fill: currentColor;
+}
+
+.botao-cozinha.is-active {
+  box-shadow: 0 12px 24px var(--cor-sombra);
+}
+
+.detalhe-receita.is-kitchen-mode .receita-dupla {
+  grid-template-columns: 1fr;
+}
+
+.detalhe-receita.is-kitchen-mode .receita-info,
+.detalhe-receita.is-kitchen-mode .receita-corpo {
+  padding: var(--espaco-xl);
+}
+
+.detalhe-receita.is-kitchen-mode .receita-info h1,
+.detalhe-receita.is-kitchen-mode .receita-corpo h2 {
+  font-size: calc(var(--texto-2xl) * 1.1);
+}
+
+.detalhe-receita.is-kitchen-mode .lista-ingredientes {
+  gap: var(--espaco-md);
+}
+
+.detalhe-receita.is-kitchen-mode .lista-ingredientes li {
+  padding: var(--espaco-md) var(--espaco-lg);
+  font-size: 1.12rem;
+}
+
+.detalhe-receita.is-kitchen-mode .lista-passos {
+  gap: var(--espaco-md);
+}
+
+.detalhe-receita.is-kitchen-mode .passo-item {
+  padding: var(--espaco-lg);
+  border: 1px solid var(--cor-borda);
+  border-left-width: 1px;
+  border-radius: var(--raio-lg);
+  font-size: 1.3rem;
+  line-height: 1.6;
+  background:
+    linear-gradient(135deg, var(--cor-luz-20), transparent),
+    var(--cor-papel);
+}
+
+.detalhe-receita.is-kitchen-mode .numero-passo {
+  min-width: 44px;
+  height: 44px;
+  font-size: var(--texto-md);
 }
 
 @media (max-width: 768px) {
