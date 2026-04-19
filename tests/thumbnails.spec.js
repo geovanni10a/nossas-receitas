@@ -11,6 +11,13 @@ function decodeRecipesFromRequest(route) {
   return JSON.parse(Buffer.from(body.content, "base64").toString("utf8"));
 }
 
+function dataUrlByteSize(dataUrl) {
+  const base64 = String(dataUrl || "").split(",")[1] || "";
+  const padding = (base64.match(/=*$/) || [""])[0].length;
+
+  return Math.ceil((base64.length * 3) / 4) - padding;
+}
+
 test("nova receita com foto salva miniatura otimizada", async ({ page }) => {
   let remoteState = buildRemotePayload();
   let savedData = null;
@@ -61,9 +68,11 @@ test("nova receita com foto salva miniatura otimizada", async ({ page }) => {
 
   expect(savedData).not.toBeNull();
   expect(savedData.receitas).toHaveLength(1);
-  expect(savedData.receitas[0].foto).toContain("data:image/jpeg;base64,");
-  expect(savedData.receitas[0].fotoThumb).toContain("data:image/jpeg;base64,");
+  expect(savedData.receitas[0].foto).toContain("data:image/webp;base64,");
+  expect(savedData.receitas[0].fotoThumb).toContain("data:image/webp;base64,");
   expect(savedData.receitas[0].fotoThumb.length).toBeLessThan(savedData.receitas[0].foto.length);
+  expect(dataUrlByteSize(savedData.receitas[0].foto)).toBeLessThanOrEqual(100 * 1024);
+  expect(dataUrlByteSize(savedData.receitas[0].fotoThumb)).toBeLessThanOrEqual(15 * 1024);
 });
 
 test("painel migra receitas antigas sem miniatura", async ({ page }) => {
@@ -123,6 +132,7 @@ test("painel migra receitas antigas sem miniatura", async ({ page }) => {
   await page.click("#thumb-migracao-shell .botao-secundario");
   await expect(page.locator("#toast")).toContainText("Miniatura antiga gerada com sucesso");
 
-  expect(remoteState.receitas[0].fotoThumb).toContain("data:image/jpeg;base64,");
+  expect(remoteState.receitas[0].fotoThumb).toContain("data:image/webp;base64,");
+  expect(dataUrlByteSize(remoteState.receitas[0].fotoThumb)).toBeLessThanOrEqual(15 * 1024);
   await expect(page.locator("#thumb-migracao-shell")).toBeEmpty();
 });

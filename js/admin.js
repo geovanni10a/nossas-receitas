@@ -19,21 +19,23 @@
     selectedHistoryCommit: ""
   };
 
-  var PHOTO_LIMIT_BYTES = 150 * 1024;
+  var PHOTO_LIMIT_BYTES = 100 * 1024;
   var PHOTO_TARGET_WIDTH = 600;
   var PHOTO_TARGET_HEIGHT = 600;
   var PHOTO_MIN_WIDTH = 320;
   var PHOTO_MIN_HEIGHT = 320;
-  var PHOTO_THUMB_LIMIT_BYTES = 20 * 1024;
+  var PHOTO_THUMB_LIMIT_BYTES = 15 * 1024;
   var PHOTO_THUMB_TARGET_WIDTH = 160;
   var PHOTO_THUMB_TARGET_HEIGHT = 120;
   var PHOTO_THUMB_MIN_WIDTH = 120;
   var PHOTO_THUMB_MIN_HEIGHT = 90;
-  var RECOMPRESS_LIMIT_BYTES = 72 * 1024;
+  var RECOMPRESS_LIMIT_BYTES = PHOTO_LIMIT_BYTES;
   var RECOMPRESS_TARGET_WIDTH = 420;
   var RECOMPRESS_TARGET_HEIGHT = 420;
   var RECOMPRESS_MIN_WIDTH = 260;
   var RECOMPRESS_MIN_HEIGHT = 260;
+  var PHOTO_PREFERRED_MIME = "image/webp";
+  var PHOTO_FALLBACK_MIME = "image/jpeg";
   var DRAFT_KEY_PREFIX = "nr_draft_";
   var DRAFT_INTERVAL_MS = 5000;
 
@@ -596,11 +598,64 @@
     ctx.drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, outputWidth, outputHeight);
   }
 
-  function compactarImagemBase64(dataUrl, targetWidth, targetHeight, limitBytes, minWidth, minHeight) {
+  function blobToDataUrl(blob) {
+    return new Promise(function (resolve, reject) {
+      var reader = new FileReader();
+
+      reader.onload = function () {
+        resolve(reader.result);
+      };
+
+      reader.onerror = function () {
+        reject(new Error("Nao foi possivel converter a imagem processada."));
+      };
+
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function canvasToBlob(canvas, mimeType, quality) {
+    return new Promise(function (resolve) {
+      if (typeof canvas.toBlob !== "function") {
+        resolve(null);
+        return;
+      }
+
+      canvas.toBlob(function (blob) {
+        resolve(blob || null);
+      }, mimeType, quality);
+    });
+  }
+
+  async function exportCanvasImage(canvas, preferredMime, fallbackMime, quality) {
+    var blob = await canvasToBlob(canvas, preferredMime, quality);
+
+    if (blob && blob.size > 0 && (!preferredMime || blob.type === preferredMime)) {
+      return blobToDataUrl(blob);
+    }
+
+    if (fallbackMime && fallbackMime !== preferredMime) {
+      var fallbackBlob = await canvasToBlob(canvas, fallbackMime, quality);
+
+      if (fallbackBlob && fallbackBlob.size > 0 && (!fallbackMime || fallbackBlob.type === fallbackMime)) {
+        return blobToDataUrl(fallbackBlob);
+      }
+    }
+
+    var preferredDataUrl = canvas.toDataURL(preferredMime, quality);
+
+    if (preferredDataUrl.indexOf("data:" + preferredMime) === 0) {
+      return preferredDataUrl;
+    }
+
+    return canvas.toDataURL(fallbackMime || PHOTO_FALLBACK_MIME, quality);
+  }
+
+  function compactarImagemBase64(dataUrl, targetWidth, targetHeight, limitBytes, minWidth, minHeight, preferredMime, fallbackMime) {
     return new Promise(function (resolve, reject) {
       var img = new Image();
 
-      img.onload = function () {
+      img.onload = async function () {
         var canvas = document.createElement("canvas");
         var ctx = canvas.getContext("2d");
         var currentWidth = targetWidth;
@@ -612,29 +667,38 @@
           return;
         }
 
-        while (currentWidth >= minWidth && currentHeight >= minHeight) {
-          var qualidadeAtual = 0.85;
+        try {
+          while (currentWidth >= minWidth && currentHeight >= minHeight) {
+            var qualidadeAtual = 0.82;
 
-          canvas.width = currentWidth;
-          canvas.height = currentHeight;
-          drawCroppedImage(ctx, img, crop, currentWidth, currentHeight);
+            canvas.width = currentWidth;
+            canvas.height = currentHeight;
+            drawCroppedImage(ctx, img, crop, currentWidth, currentHeight);
 
-          while (qualidadeAtual >= 0.45) {
-            var base64 = canvas.toDataURL("image/jpeg", qualidadeAtual);
+            while (qualidadeAtual >= 0.42) {
+              var base64 = await exportCanvasImage(
+                canvas,
+                preferredMime || PHOTO_PREFERRED_MIME,
+                fallbackMime || PHOTO_FALLBACK_MIME,
+                qualidadeAtual
+              );
 
-            if (getDataUrlByteSize(base64) <= limitBytes) {
-              resolve(base64);
-              return;
+              if (getDataUrlByteSize(base64) <= limitBytes) {
+                resolve(base64);
+                return;
+              }
+
+              qualidadeAtual -= 0.05;
             }
 
-            qualidadeAtual -= 0.05;
+            currentWidth -= 24;
+            currentHeight -= 18;
           }
 
-          currentWidth -= 24;
-          currentHeight -= 18;
+          reject(new Error("Nao foi possivel compactar a foto. Tente outra imagem."));
+        } catch (error) {
+          reject(error);
         }
-
-        reject(new Error("Nao foi possivel compactar a foto. Tente outra imagem."));
       };
 
       img.onerror = function () {
@@ -653,7 +717,9 @@
         PHOTO_TARGET_HEIGHT,
         PHOTO_LIMIT_BYTES,
         PHOTO_MIN_WIDTH,
-        PHOTO_MIN_HEIGHT
+        PHOTO_MIN_HEIGHT,
+        PHOTO_PREFERRED_MIME,
+        PHOTO_FALLBACK_MIME
       ),
       compactarImagemBase64(
         dataUrl,
@@ -661,7 +727,9 @@
         PHOTO_THUMB_TARGET_HEIGHT,
         PHOTO_THUMB_LIMIT_BYTES,
         PHOTO_THUMB_MIN_WIDTH,
-        PHOTO_THUMB_MIN_HEIGHT
+        PHOTO_THUMB_MIN_HEIGHT,
+        PHOTO_PREFERRED_MIME,
+        PHOTO_FALLBACK_MIME
       )
     ]).then(function (result) {
       return {
@@ -1535,7 +1603,9 @@
         PHOTO_THUMB_TARGET_HEIGHT,
         PHOTO_THUMB_LIMIT_BYTES,
         PHOTO_THUMB_MIN_WIDTH,
-        PHOTO_THUMB_MIN_HEIGHT
+        PHOTO_THUMB_MIN_HEIGHT,
+        PHOTO_PREFERRED_MIME,
+        PHOTO_FALLBACK_MIME
       );
 
       await window.NRStorage.saveRecipe(Object.assign({}, recipe, {
@@ -1637,7 +1707,9 @@
           RECOMPRESS_TARGET_HEIGHT,
           RECOMPRESS_LIMIT_BYTES,
           RECOMPRESS_MIN_WIDTH,
-          RECOMPRESS_MIN_HEIGHT
+          RECOMPRESS_MIN_HEIGHT,
+          PHOTO_PREFERRED_MIME,
+          PHOTO_FALLBACK_MIME
         ),
         compactarImagemBase64(
           recipe.foto,
@@ -1645,7 +1717,9 @@
           PHOTO_THUMB_TARGET_HEIGHT,
           PHOTO_THUMB_LIMIT_BYTES,
           PHOTO_THUMB_MIN_WIDTH,
-          PHOTO_THUMB_MIN_HEIGHT
+          PHOTO_THUMB_MIN_HEIGHT,
+          PHOTO_PREFERRED_MIME,
+          PHOTO_FALLBACK_MIME
         )
       ]);
       saved = await window.NRStorage.saveRecipe(Object.assign({}, recipe, {
