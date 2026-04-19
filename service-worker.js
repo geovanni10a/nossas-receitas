@@ -1,4 +1,4 @@
-var VERSION = "nr-v2-supabase";
+var VERSION = "nr-v3-video";
 var APP_SHELL_CACHE = VERSION + "-shell";
 var RUNTIME_CACHE = VERSION + "-runtime";
 var RECIPE_CACHE = VERSION + "-recipes";
